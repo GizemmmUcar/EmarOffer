@@ -1,0 +1,14 @@
+# Node.js için gizlenecekler
+node_modules/
+.env
+
+# Flutter / Dart için gizlenecekler
+.dart_tool/
+build/
+.packages
+.pub-cache/
+.pub/
+
+# İşletim sistemlerinin kendi çöp dosyaları
+.DS_Store
+Thumbs.db
