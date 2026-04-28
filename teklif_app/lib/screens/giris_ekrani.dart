@@ -12,7 +12,8 @@ class GirisEkrani extends StatefulWidget {
 class _GirisEkraniState extends State<GirisEkrani> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = ApiService();
-  final _epostaController = TextEditingController();
+
+  final _kullaniciBilgisiController = TextEditingController();
   final _sifreController = TextEditingController();
 
   bool _isLoading = false;
@@ -24,7 +25,7 @@ class _GirisEkraniState extends State<GirisEkrani> {
     setState(() => _isLoading = true);
 
     final kullanici = await _apiService.girisYap(
-      _epostaController.text.trim(),
+      _kullaniciBilgisiController.text.trim(),
       _sifreController.text.trim(),
     );
 
@@ -42,7 +43,7 @@ class _GirisEkraniState extends State<GirisEkrani> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Hatalı e-posta veya şifre!"),
+            content: Text("Hatalı kullanıcı bilgisi veya şifre!"),
             backgroundColor: Colors.red,
           ),
         );
@@ -121,22 +122,23 @@ class _GirisEkraniState extends State<GirisEkrani> {
                     ),
                   ),
                   const SizedBox(height: 8),
+
                   const Text(
-                    "Lütfen e-posta ve şifrenizle giriş yapın",
-                    style: TextStyle(color: Colors.grey),
+                    "Lütfen e-posta veya kullanıcı adınızla giriş yapın",
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
 
                   TextFormField(
-                    controller: _epostaController,
+                    controller: _kullaniciBilgisiController,
                     decoration: const InputDecoration(
-                      labelText: "E-Posta",
-                      prefixIcon: Icon(Icons.email),
+                      labelText: "E-Posta veya Kullanıcı Adı",
+                      prefixIcon: Icon(Icons.person),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) => v!.isEmpty || !v.contains("@")
-                        ? "Geçerli bir e-posta girin"
-                        : null,
+                    validator: (v) =>
+                        v!.isEmpty ? "Lütfen giriş bilginizi doldurun" : null,
                   ),
                   const SizedBox(height: 16),
 

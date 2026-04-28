@@ -109,7 +109,7 @@ class UrunSecimTablosu extends StatelessWidget {
           Expanded(
             flex: 1,
             child: Text(
-              "% İsk.",
+              "% İskonto",
               style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
             ),
           ),

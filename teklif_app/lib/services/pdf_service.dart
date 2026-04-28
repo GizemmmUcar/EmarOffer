@@ -72,12 +72,7 @@ class PdfService {
             _buildFooter(fontRegular, context.pageNumber, context.pagesCount),
         build: (context) => [
           pw.SizedBox(height: 20),
-          _buildMusteriBilgileri(
-            fontBold,
-            fontRegular,
-            firmaAdi,
-            formatliTarih,
-          ),
+          _buildMusteriBilgileri(fontBold, fontRegular, teklif, formatliTarih),
           pw.SizedBox(height: 30),
           _buildUrunlerTablosu(
             urunler,
@@ -209,9 +204,16 @@ class PdfService {
   static pw.Widget _buildMusteriBilgileri(
     pw.Font fontBold,
     pw.Font fontRegular,
-    String firmaAdi,
+    Map<String, dynamic> teklif,
     String formatliTarih,
   ) {
+    final String firmaAdi = teklif["FirmaAdi"]?.toString() ?? "Bilinmiyor";
+    final String adres = teklif["Adres"]?.toString() ?? "";
+    final String telefon = teklif["Telefon"]?.toString() ?? "";
+    final String eposta = teklif["Eposta"]?.toString() ?? "";
+    final String vDairesi = teklif["VergiDairesi"]?.toString() ?? "";
+    final String vNo = teklif["VergiNo"]?.toString() ?? "";
+
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
@@ -220,24 +222,55 @@ class PdfService {
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                "Müşteri / Alıcı:",
-                style: pw.TextStyle(
-                  font: fontBold,
-                  fontSize: 11,
-                  color: PdfColors.grey700,
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  "Müşteri / Alıcı:",
+                  style: pw.TextStyle(
+                    font: fontBold,
+                    fontSize: 11,
+                    color: PdfColors.grey700,
+                  ),
                 ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                firmaAdi,
-                style: pw.TextStyle(font: fontBold, fontSize: 14),
-              ),
-            ],
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  firmaAdi,
+                  style: pw.TextStyle(font: fontBold, fontSize: 14),
+                ),
+                pw.SizedBox(height: 4),
+
+                if (adres.isNotEmpty)
+                  pw.Text(
+                    adres,
+                    style: pw.TextStyle(font: fontRegular, fontSize: 10),
+                  ),
+                if (adres.isNotEmpty) pw.SizedBox(height: 2),
+
+                if (telefon.isNotEmpty)
+                  pw.Text(
+                    "Tel: $telefon",
+                    style: pw.TextStyle(font: fontRegular, fontSize: 10),
+                  ),
+
+                if (eposta.isNotEmpty)
+                  pw.Text(
+                    "E-posta: $eposta",
+                    style: pw.TextStyle(font: fontRegular, fontSize: 10),
+                  ),
+
+                if (vDairesi.isNotEmpty || vNo.isNotEmpty) ...[
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    "V. Dairesi: ${vDairesi.isNotEmpty ? vDairesi : '-'} | V. No: ${vNo.isNotEmpty ? vNo : '-'}",
+                    style: pw.TextStyle(font: fontRegular, fontSize: 10),
+                  ),
+                ],
+              ],
+            ),
           ),
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -251,7 +284,6 @@ class PdfService {
                 ),
               ),
               pw.SizedBox(height: 4),
-
               pw.Text(
                 formatliTarih,
                 style: pw.TextStyle(font: fontBold, fontSize: 12),

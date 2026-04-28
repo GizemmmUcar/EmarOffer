@@ -363,12 +363,18 @@ class ApiService {
 
   // Giriş Yapma
 
-  Future<Map<String, dynamic>?> girisYap(String eposta, String sifre) async {
+  Future<Map<String, dynamic>?> girisYap(
+    String kullaniciBilgisi,
+    String sifre,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/kullanicilar/login'),
         headers: _headers,
-        body: jsonEncode({"eposta": eposta, "sifre": sifre}),
+        body: jsonEncode({
+          "kullaniciBilgisi": kullaniciBilgisi,
+          "sifre": sifre,
+        }),
       );
 
       if (response.statusCode == 200) {
