@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:country_picker/country_picker.dart';
+import 'package:country_state_city/country_state_city.dart' as csc;
 import '../services/api_service.dart';
 import '../models/teklif_model.dart';
 import '../models/teklif_satiri_model.dart';
+import '../widgets/teklif_toplamlar_karti.dart';
+import 'dart:convert';
 
 class TeklifEkleEkrani extends StatefulWidget {
   final Map<String, dynamic>? mevcutTeklif;
@@ -16,7 +20,7 @@ class TeklifEkleEkrani extends StatefulWidget {
 class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
   final ApiService _apiService = ApiService();
 
-  final TextEditingController _teklifNoController = TextEditingController();
+  late final TextEditingController _teklifNoController;
   final TextEditingController _notController = TextEditingController();
   final TextEditingController _yFirmaController = TextEditingController();
   final TextEditingController _yYetkiliController = TextEditingController();
@@ -26,6 +30,16 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
       TextEditingController();
   final TextEditingController _yVergiNoController = TextEditingController();
   final TextEditingController _yAdresController = TextEditingController();
+
+  String? _secilenUlkeAdi = "Türkiye";
+  String? _secilenUlkeKodu = "TR";
+  String _telefonKodu = "+90";
+
+  List<csc.State> _bolgeler = [];
+  csc.State? _secilenBolge;
+
+  List<csc.City> _sehirler = [];
+  csc.City? _secilenSehir;
 
   int _gecerlilikGunu = 7;
   String _doviz = "TRY";
@@ -40,40 +54,18 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
   @override
   void initState() {
     super.initState();
+    final mevcutTeklifNo = widget.mevcutTeklif?["TeklifNo"]?.toString() ?? "";
+    _teklifNoController = TextEditingController(
+      text: mevcutTeklifNo.isNotEmpty
+          ? mevcutTeklifNo
+          : _otomatikTeklifNoUret(),
+    );
+
     _verileriYukle();
+    _varsayilanIlleriYukle();
+
     if (widget.mevcutTeklif != null) {
       _mevcutTeklifiYukle();
-    }
-  }
-
-  Future<void> _mevcutTeklifiYukle() async {
-    final t = widget.mevcutTeklif!;
-
-    _teklifNoController.text = t["TeklifNo"]?.toString() ?? "";
-    _notController.text = t["GenelNot"]?.toString() ?? "";
-    _doviz = t["Doviz"]?.toString() ?? "TRY";
-    _odemeTuru = t["OdemeTuru"]?.toString() ?? "Nakit";
-    _secilenMusteriId = t["MusteriId"];
-    _gecerlilikGunu = t["GecerlilikGunu"] ?? 7;
-
-    try {
-      final detaylar = await _apiService.getTeklifDetaylari(t["Id"]);
-      if (mounted) {
-        setState(() {
-          _kalemler = detaylar.map((d) {
-            final satir = TeklifSatiri();
-            satir.urunId = d["UrunId"];
-            satir.miktar = d["Miktar"] ?? 1;
-            satir.birimFiyat =
-                double.tryParse(d["BirimFiyat"]?.toString() ?? "0") ?? 0.0;
-            satir.iskontoYuzdesi =
-                double.tryParse(d["IskontoYuzdesi"]?.toString() ?? "0") ?? 0.0;
-            return satir;
-          }).toList();
-        });
-      }
-    } catch (e) {
-      debugPrint("Düzenleme için ürün detayları çekilemedi: $e");
     }
   }
 
@@ -89,6 +81,22 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
     _yVergiNoController.dispose();
     _yAdresController.dispose();
     super.dispose();
+  }
+
+  String _otomatikTeklifNoUret() {
+    final now = DateTime.now();
+    final tarih =
+        "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}";
+    final rastgele = (now.millisecondsSinceEpoch % 10000).toString().padLeft(
+      4,
+      '0',
+    );
+    return "TK-$tarih-$rastgele";
+  }
+
+  Future<void> _varsayilanIlleriYukle() async {
+    final bolgeler = await csc.getStatesOfCountry("TR");
+    if (mounted) setState(() => _bolgeler = bolgeler);
   }
 
   Future<void> _verileriYukle() async {
@@ -115,36 +123,56 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
     }
   }
 
+  Future<void> _mevcutTeklifiYukle() async {
+    final t = widget.mevcutTeklif!;
+
+    _notController.text = t["GenelNot"]?.toString() ?? "";
+    _doviz = t["Doviz"]?.toString() ?? "TRY";
+    _odemeTuru = t["OdemeTuru"]?.toString() ?? "Nakit";
+    _secilenMusteriId = t["MusteriId"];
+    _gecerlilikGunu = t["GecerlilikGunu"] ?? 7;
+
+    try {
+      final detaylar = await _apiService.getTeklifDetaylari(t["Id"]);
+      if (mounted) {
+        setState(() {
+          _kalemler = detaylar.map((d) {
+            final satir = TeklifSatiri();
+            satir.urunId = d["UrunId"];
+            satir.miktar = d["Miktar"] ?? 1;
+            satir.birimFiyat =
+                double.tryParse(d["BirimFiyat"]?.toString() ?? "0") ?? 0.0;
+            satir.iskontoYuzdesi =
+                double.tryParse(d["IskontoYuzdesi"]?.toString() ?? "0") ?? 0.0;
+            satir.kdvOrani =
+                double.tryParse(d["KdvOrani"]?.toString() ?? "0") ?? 0.0;
+            return satir;
+          }).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint("Düzenleme için ürün detayları çekilemedi: $e");
+    }
+  }
+
   double _getAraToplam() =>
       _kalemler.fold(0, (toplam, satir) => toplam + satir.hamToplam);
-
-  double _getToplamIndirim() => _kalemler.fold(
-    0,
-    (toplam, satir) =>
-        toplam + (satir.hamToplam * (satir.iskontoYuzdesi / 100)),
-  );
-
+  double _getToplamIndirim() =>
+      _kalemler.fold(0, (toplam, satir) => toplam + satir.indirimTutari);
+  double _getKdvHaricTutar() =>
+      _kalemler.fold(0, (toplam, satir) => toplam + satir.kdvHaricTutar);
+  double _getToplamKdv() =>
+      _kalemler.fold(0, (toplam, satir) => toplam + satir.kdvTutari);
   double _getGenelToplam() =>
-      _kalemler.fold(0, (toplam, satir) => toplam + satir.indirimliToplam);
+      _kalemler.fold(0, (toplam, satir) => toplam + satir.genelToplam);
 
   Future<void> _kaydet() async {
     if (_teklifNoController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Lütfen bir Teklif No girin!"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _hataGoster("Lütfen bir Teklif No girin!");
       return;
     }
-
     if (_yeniMusteri && _yFirmaController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Lütfen yeni firma adını girin!"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _hataGoster("Lütfen yeni firma adını girin!");
       return;
     }
 
@@ -170,6 +198,19 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
       );
 
       bool basarili = false;
+      String temizSehir =
+          _secilenBolge?.name
+              .replaceAll(' Province', '')
+              .replaceAll(' State', '')
+              .trim() ??
+          "";
+      String temizIlce =
+          _secilenSehir?.name
+              .replaceAll(' İlçesi', '')
+              .replaceAll(' District', '')
+              .replaceAll(' Merkez', '')
+              .trim() ??
+          "";
 
       if (widget.mevcutTeklif == null) {
         basarili = await _apiService.createTeklif(
@@ -182,11 +223,16 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
           secilenMusteriId: _secilenMusteriId,
           yeniFirmaAdi: _yeniMusteri ? _yFirmaController.text : null,
           yeniYetkiliKisi: _yeniMusteri ? _yYetkiliController.text : null,
-          yeniTelefon: _yeniMusteri ? _yTelefonController.text : null,
+          yeniTelefon: _yeniMusteri
+              ? "$_telefonKodu ${_yTelefonController.text.trim()}"
+              : null,
           yeniEposta: _yeniMusteri ? _yEpostaController.text : null,
           yeniVergiDairesi: _yeniMusteri ? _yVergiDairesiController.text : null,
           yeniVergiNo: _yeniMusteri ? _yVergiNoController.text : null,
           yeniAdres: _yeniMusteri ? _yAdresController.text : null,
+          yeniUlke: _yeniMusteri ? _secilenUlkeAdi : null,
+          yeniSehir: _yeniMusteri ? temizSehir : null,
+          yeniIlce: _yeniMusteri ? temizIlce : null,
           doviz: _doviz,
           odemeTuru: _odemeTuru,
         );
@@ -218,20 +264,19 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
         widget.onSaved();
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Kaydedilirken bir hata oluştu."),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _hataGoster("Kaydedilirken bir hata oluştu.");
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Hata: $e"), backgroundColor: Colors.red),
-      );
+      _hataGoster("Hata: $e");
     }
+  }
+
+  void _hataGoster(String mesaj) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(mesaj), backgroundColor: Colors.red));
   }
 
   @override
@@ -300,7 +345,7 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
                     const SizedBox(height: 12),
                     _buildNotKarti(isMobil),
                     const SizedBox(height: 12),
-                    _buildToplamlarKarti(isMobil),
+                    _buildToplamlarKarti(),
                     const SizedBox(height: 30),
                   ],
                 ),
@@ -327,10 +372,7 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
                         children: [
                           Expanded(flex: 2, child: _buildNotKarti(isMobil)),
                           const SizedBox(width: 16),
-                          Expanded(
-                            flex: 1,
-                            child: _buildToplamlarKarti(isMobil),
-                          ),
+                          Expanded(flex: 1, child: _buildToplamlarKarti()),
                         ],
                       ),
                     ),
@@ -338,6 +380,17 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
                 ),
               ),
       ),
+    );
+  }
+
+  Widget _buildToplamlarKarti() {
+    return TeklifToplamlarKarti(
+      araToplam: _getAraToplam(),
+      toplamIndirim: _getToplamIndirim(),
+      kdvHaricTutar: _getKdvHaricTutar(),
+      toplamKdv: _getToplamKdv(),
+      genelToplam: _getGenelToplam(),
+      doviz: _doviz,
     );
   }
 
@@ -436,20 +489,23 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
                 width: 70,
                 child: Text("Ödeme:", style: TextStyle(color: Colors.grey)),
               ),
+
               _secimButonu(
                 "Nakit",
                 _odemeTuru == "Nakit",
                 () => setState(() => _odemeTuru = "Nakit"),
               ),
-              _secimButonu(
-                "Kredi Kartı",
-                _odemeTuru == "Kredi Kartı",
-                () => setState(() => _odemeTuru = "Kredi Kartı"),
-              ),
+              /*
               _secimButonu(
                 "Havale/EFT",
                 _odemeTuru == "Havale/EFT",
                 () => setState(() => _odemeTuru = "Havale/EFT"),
+              ),
+              */
+              _secimButonu(
+                "Kredi Kartı",
+                _odemeTuru == "Kredi Kartı",
+                () => setState(() => _odemeTuru = "Kredi Kartı"),
               ),
             ],
           ),
@@ -470,11 +526,11 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
           ),
           Switch(
             value: _yeniMusteri,
+            activeTrackColor: Colors.indigo,
             onChanged: (val) => setState(() {
               _yeniMusteri = val;
               _secilenMusteriId = null;
             }),
-            activeTrackColor: Colors.indigo,
           ),
         ],
       ),
@@ -484,82 +540,72 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
           if (_yeniMusteri) ...[
             _kucukTextField("Firma Adı", _yFirmaController),
             const SizedBox(height: 8),
-            isMobil
-                ? Column(
-                    children: [
-                      _kucukTextField("Yetkili Kişi", _yYetkiliController),
-                      const SizedBox(height: 8),
-                      _kucukTextField("Telefon", _yTelefonController),
-                      const SizedBox(height: 8),
-                      _kucukTextField("E-posta", _yEpostaController),
-                      const SizedBox(height: 8),
-                      _kucukTextField(
-                        "Vergi Dairesi",
-                        _yVergiDairesiController,
-                      ),
-                      const SizedBox(height: 8),
-                      _kucukTextField("Vergi No", _yVergiNoController),
-                      const SizedBox(height: 8),
-                      _kucukTextField("Adres", _yAdresController),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _kucukTextField(
-                              "Yetkili Kişi",
-                              _yYetkiliController,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _kucukTextField(
-                              "Telefon",
-                              _yTelefonController,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _kucukTextField(
-                              "E-posta",
-                              _yEpostaController,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _kucukTextField(
-                              "Vergi Dairesi",
-                              _yVergiDairesiController,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: _kucukTextField(
-                              "Vergi No",
-                              _yVergiNoController,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: _kucukTextField("Adres", _yAdresController),
-                          ),
-                        ],
-                      ),
-                    ],
+            if (isMobil) ...[
+              _kucukTextField("Yetkili Kişi", _yYetkiliController),
+              const SizedBox(height: 8),
+              _kucukTextField(
+                "Telefon",
+                _yTelefonController,
+                prefixText: "$_telefonKodu ",
+              ),
+              const SizedBox(height: 8),
+              _kucukTextField("E-posta", _yEpostaController),
+              const SizedBox(height: 8),
+              _buildUlkeSecici(),
+              const SizedBox(height: 8),
+              _buildIlIlceSecici(),
+              const SizedBox(height: 8),
+              _kucukTextField("Vergi Dairesi", _yVergiDairesiController),
+              const SizedBox(height: 8),
+              _kucukTextField("Vergi No", _yVergiNoController),
+              const SizedBox(height: 8),
+              _kucukTextField("Adres", _yAdresController),
+            ] else ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _kucukTextField("Yetkili Kişi", _yYetkiliController),
                   ),
-            const SizedBox(height: 4),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _kucukTextField(
+                      "Telefon",
+                      _yTelefonController,
+                      prefixText: "$_telefonKodu ",
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _kucukTextField("E-posta", _yEpostaController),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildUlkeSecici()),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildIlIlceSecici(),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _kucukTextField(
+                      "Vergi Dairesi",
+                      _yVergiDairesiController,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _kucukTextField("Vergi No", _yVergiNoController),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _kucukTextField("Adres", _yAdresController),
+            ],
           ] else ...[
             const SizedBox(height: 12),
             SizedBox(
@@ -607,53 +653,7 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
   Widget _urunTablosuGovdesi() {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: Row(
-            children: const [
-              Expanded(
-                flex: 3,
-                child: Text(
-                  "Kayıtlı Ürün",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                flex: 1,
-                child: Text(
-                  "Miktar",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  "Birim Fiyat",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                flex: 1,
-                child: Text(
-                  "% İsk.",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  "Satır Toplamı",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ),
-              SizedBox(width: 40),
-            ],
-          ),
-        ),
+        _buildUrunBasliklari(),
         const Divider(height: 1),
         ListView.builder(
           shrinkWrap: true,
@@ -661,133 +661,7 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
           itemCount: _kalemler.length,
           itemBuilder: (context, index) {
             final kalem = _kalemler[index];
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: DropdownButtonFormField<int>(
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      hint: const Text(
-                        "Ürün Seçin...",
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      initialValue: kalem.urunId,
-                      items: _kayitliUrunler
-                          .map(
-                            (u) => DropdownMenuItem<int>(
-                              value: u["Id"],
-                              child: Text(
-                                u["UrunAdi"]?.toString() ?? "-",
-                                style: const TextStyle(fontSize: 13),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (val) {
-                        setState(() {
-                          kalem.urunId = val;
-                          final secilenUrun = _kayitliUrunler.firstWhere(
-                            (u) => u["Id"] == val,
-                            orElse: () => null,
-                          );
-                          if (secilenUrun != null) {
-                            kalem.birimFiyat =
-                                double.tryParse(
-                                  secilenUrun["BirimFiyati"]?.toString() ?? "0",
-                                ) ??
-                                0.0;
-                          }
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 1,
-                    child: TextFormField(
-                      initialValue: kalem.miktar.toString(),
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 13),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      onChanged: (val) =>
-                          setState(() => kalem.miktar = int.tryParse(val) ?? 1),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      key: ValueKey("fiyat_${index}_${kalem.urunId}"),
-                      initialValue: kalem.birimFiyat.toStringAsFixed(2),
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 13),
-                      decoration: InputDecoration(
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                        ),
-                        suffixText: _doviz,
-                      ),
-                      onChanged: (val) => setState(
-                        () => kalem.birimFiyat = double.tryParse(val) ?? 0.0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 1,
-                    child: TextFormField(
-                      initialValue: kalem.iskontoYuzdesi.toString(),
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 13),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                        suffixText: "%",
-                      ),
-                      onChanged: (val) => setState(
-                        () =>
-                            kalem.iskontoYuzdesi = double.tryParse(val) ?? 0.0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      "${kalem.indirimliToplam.toStringAsFixed(2)} $_doviz",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 40,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.delete,
-                        color: Colors.red,
-                        size: 20,
-                      ),
-                      onPressed: () =>
-                          setState(() => _kalemler.removeAt(index)),
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return _buildUrunSatiri(kalem, index);
           },
         ),
         Align(
@@ -806,6 +680,283 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
     );
   }
 
+  Widget _buildUrunBasliklari() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        children: const [
+          Expanded(
+            flex: 3,
+            child: Text(
+              "Kayıtlı Ürün",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            flex: 1,
+            child: Text(
+              "Miktar",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: Text(
+              "Birim Fiyat",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            flex: 1,
+            child: Text(
+              "% İsk.",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            flex: 1,
+            child: Text(
+              "% KDV",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: Text(
+              "Satır Toplamı",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          SizedBox(width: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUrunSatiri(TeklifSatiri kalem, int index) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: DropdownButtonFormField<int>(
+              isExpanded: true,
+              itemHeight: 60,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 8,
+                ),
+              ),
+              hint: const Text("Ürün Seçin...", style: TextStyle(fontSize: 13)),
+              initialValue: kalem.urunId,
+
+              selectedItemBuilder: (BuildContext context) {
+                return _kayitliUrunler.map<Widget>((u) {
+                  return Text(
+                    u["UrunAdi"]?.toString() ?? "-",
+                    style: const TextStyle(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  );
+                }).toList();
+              },
+
+              items: _kayitliUrunler.map((u) {
+                String? gorselBase64 = u["UrunGorsel"]?.toString();
+                if (gorselBase64 != null) {
+                  gorselBase64 = gorselBase64.replaceAll(RegExp(r'\s+'), '');
+                }
+                String aciklama =
+                    u["Aciklama"]?.toString() ??
+                    u["UrunAciklamasi"]?.toString() ??
+                    "Açıklama bulunmuyor";
+
+                return DropdownMenuItem<int>(
+                  value: u["Id"],
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: (gorselBase64 != null && gorselBase64.isNotEmpty)
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.memory(
+                                  base64Decode(gorselBase64),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (ctx, err, stack) => const Icon(
+                                    Icons.broken_image,
+                                    size: 20,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              )
+                            : const Icon(
+                                Icons.inventory_2,
+                                color: Colors.indigo,
+                                size: 20,
+                              ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              u["UrunAdi"]?.toString() ?? "-",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              aciklama,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) {
+                setState(() {
+                  kalem.urunId = val;
+                  final secilenUrun = _kayitliUrunler.firstWhere(
+                    (u) => u["Id"] == val,
+                    orElse: () => null,
+                  );
+                  if (secilenUrun != null) {
+                    kalem.birimFiyat =
+                        double.tryParse(
+                          secilenUrun["BirimFiyati"]?.toString() ?? "0",
+                        ) ??
+                        0.0;
+                    kalem.kdvOrani =
+                        double.tryParse(
+                          secilenUrun["KdvOrani"]?.toString() ?? "0",
+                        ) ??
+                        0.0;
+                  }
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 1,
+            child: TextFormField(
+              key: ValueKey("miktar_${index}_${kalem.miktar}"),
+              initialValue: kalem.miktar.toString(),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+              ),
+              onChanged: (val) =>
+                  setState(() => kalem.miktar = int.tryParse(val) ?? 1),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              key: ValueKey("fiyat_${index}_${kalem.birimFiyat}"),
+              initialValue: kalem.birimFiyat == 0
+                  ? "0"
+                  : kalem.birimFiyat.toStringAsFixed(2),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                suffixText: _doviz,
+              ),
+              onChanged: (val) => setState(
+                () => kalem.birimFiyat = double.tryParse(val) ?? 0.0,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 1,
+            child: TextFormField(
+              key: ValueKey("iskonto_${index}_${kalem.iskontoYuzdesi}"),
+              initialValue: kalem.iskontoYuzdesi == 0
+                  ? "0"
+                  : kalem.iskontoYuzdesi.toStringAsFixed(0),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                suffixText: "%",
+              ),
+              onChanged: (val) => setState(
+                () => kalem.iskontoYuzdesi = double.tryParse(val) ?? 0.0,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 1,
+            child: TextFormField(
+              key: ValueKey("kdv_${index}_${kalem.kdvOrani}"),
+              initialValue: kalem.kdvOrani == 0
+                  ? "0"
+                  : kalem.kdvOrani.toStringAsFixed(0),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                suffixText: "%",
+              ),
+              onChanged: (val) =>
+                  setState(() => kalem.kdvOrani = double.tryParse(val) ?? 0.0),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: Text(
+              "${kalem.genelToplam.toStringAsFixed(2)} $_doviz",
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            child: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+              onPressed: () => setState(() => _kalemler.removeAt(index)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNotKarti(bool isMobil) {
     return _kutuTasarimi(
       baslik: "Genel Not / Açıklama",
@@ -820,62 +971,6 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
           border: OutlineInputBorder(),
           contentPadding: EdgeInsets.all(12),
         ),
-      ),
-    );
-  }
-
-  Widget _buildToplamlarKarti(bool isMobil) {
-    return _kutuTasarimi(
-      baslik: "Toplamlar",
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Ara Toplam:",
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-              Text(
-                "${_getAraToplam().toStringAsFixed(2)} $_doviz",
-                style: const TextStyle(fontSize: 13),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Toplam İndirim:",
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-              Text(
-                "-${_getToplamIndirim().toStringAsFixed(2)} $_doviz",
-                style: const TextStyle(color: Colors.red, fontSize: 13),
-              ),
-            ],
-          ),
-          const Divider(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Genel Toplam:",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              Text(
-                "${_getGenelToplam().toStringAsFixed(2)} $_doviz",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.indigo,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -915,7 +1010,11 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
     );
   }
 
-  Widget _kucukTextField(String etiket, TextEditingController controller) {
+  Widget _kucukTextField(
+    String etiket,
+    TextEditingController controller, {
+    String? prefixText,
+  }) {
     return SizedBox(
       height: 48,
       child: TextField(
@@ -925,6 +1024,7 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
           labelText: etiket,
           labelStyle: const TextStyle(fontSize: 13),
           border: const OutlineInputBorder(),
+          prefixText: prefixText,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 10,
             vertical: 0,
@@ -955,6 +1055,182 @@ class _TeklifEkleEkraniState extends State<TeklifEkleEkrani> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildUlkeSecici() {
+    return InkWell(
+      onTap: () {
+        showCountryPicker(
+          context: context,
+          showPhoneCode: false,
+          countryListTheme: CountryListThemeData(
+            bottomSheetHeight: 500,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            inputDecoration: InputDecoration(
+              labelText: 'Ülke Ara',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          onSelect: (Country country) async {
+            String gelenUlke = country.nameLocalized ?? country.name;
+            if (gelenUlke == "Turkey") gelenUlke = "Türkiye";
+            setState(() {
+              _secilenUlkeAdi = gelenUlke;
+              _secilenUlkeKodu = country.countryCode;
+              _telefonKodu = "+${country.phoneCode}";
+              _secilenBolge = null;
+              _secilenSehir = null;
+              _sehirler = [];
+            });
+            final bolgeler = await csc.getStatesOfCountry(country.countryCode);
+            setState(() => _bolgeler = bolgeler);
+          },
+        );
+      },
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _secilenUlkeAdi ?? "Ülke Seç",
+              style: TextStyle(
+                fontSize: 13,
+                color: _secilenUlkeAdi == null
+                    ? Colors.grey.shade700
+                    : Colors.black87,
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIlIlceSecici() {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 48,
+            child: DropdownButtonFormField<csc.State>(
+              key: ValueKey("il_$_secilenUlkeKodu"),
+              decoration: const InputDecoration(
+                labelText: "İl",
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 0,
+                ),
+              ),
+              isExpanded: true,
+              initialValue: _secilenBolge,
+              items: _bolgeler
+                  .map(
+                    (b) => DropdownMenuItem(
+                      value: b,
+                      child: Text(
+                        b.name
+                            .replaceAll(' Province', '')
+                            .replaceAll(' State', '')
+                            .trim(),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (yeniBolge) async {
+                setState(() {
+                  _secilenBolge = yeniBolge;
+                  _secilenSehir = null;
+                  _sehirler = [];
+                });
+                if (yeniBolge != null && _secilenUlkeKodu != null) {
+                  final hamSehirler = await csc.getStateCities(
+                    _secilenUlkeKodu!,
+                    yeniBolge.isoCode,
+                  );
+                  final Map<String, csc.City> benzersizMap = {};
+                  for (var s in hamSehirler) {
+                    String temizAd = s.name
+                        .replaceAll(' İlçesi', '')
+                        .replaceAll(' District', '')
+                        .replaceAll(' Merkez', '')
+                        .trim();
+                    String k = temizAd
+                        .toLowerCase()
+                        .replaceAll('ı', 'i')
+                        .replaceAll('ş', 's')
+                        .replaceAll('ğ', 'g')
+                        .replaceAll('ç', 'c')
+                        .replaceAll('ö', 'o')
+                        .replaceAll('ü', 'u')
+                        .replaceAll('i̇', 'i');
+                    if (!benzersizMap.containsKey(k)) {
+                      benzersizMap[k] = s;
+                    } else if (temizAd.contains(RegExp(r'[çğıöşüÇĞİÖŞÜ]'))) {
+                      benzersizMap[k] = s;
+                    }
+                  }
+                  var sirali = benzersizMap.values.toList();
+                  sirali.sort((a, b) => a.name.compareTo(b.name));
+                  setState(() => _sehirler = sirali);
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: SizedBox(
+            height: 48,
+            child: DropdownButtonFormField<csc.City>(
+              key: ValueKey("ilce_${_secilenBolge?.isoCode}"),
+              decoration: const InputDecoration(
+                labelText: "İlçe",
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 0,
+                ),
+              ),
+              isExpanded: true,
+              initialValue: _secilenSehir,
+              items: _sehirler
+                  .map(
+                    (s) => DropdownMenuItem(
+                      value: s,
+                      child: Text(
+                        s.name
+                            .replaceAll(' İlçesi', '')
+                            .replaceAll(' District', '')
+                            .replaceAll(' Merkez', '')
+                            .trim(),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (yeniSehir) =>
+                  setState(() => _secilenSehir = yeniSehir),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

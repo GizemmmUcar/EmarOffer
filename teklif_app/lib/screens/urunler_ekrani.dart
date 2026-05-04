@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../widgets/urun_form_dialog.dart';
+import 'dart:convert';
 
 class UrunlerEkrani extends StatefulWidget {
   const UrunlerEkrani({super.key});
@@ -365,15 +366,48 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
                                     vertical: 8,
                                   ),
                                   leading: Container(
-                                    padding: const EdgeInsets.all(12),
+                                    width: 50,
+                                    height: 50,
                                     decoration: BoxDecoration(
-                                      color: Colors.indigo.withOpacity(0.1),
+                                      color: Colors.indigo.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Icon(
-                                      Icons.inventory_2,
-                                      color: Colors.indigo,
-                                    ),
+                                    child:
+                                        (urun["UrunGorsel"] != null &&
+                                            urun["UrunGorsel"]
+                                                .toString()
+                                                .isNotEmpty)
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            child: Image.memory(
+                                              base64Decode(
+                                                urun["UrunGorsel"]
+                                                    .toString()
+                                                    .replaceAll(
+                                                      RegExp(r'\s+'),
+                                                      '',
+                                                    ),
+                                              ),
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => const Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey,
+                                                  ),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.inventory_2,
+                                            color: Colors.indigo,
+                                          ),
                                   ),
                                   title: Text(
                                     urun["UrunAdi"]?.toString() ??
@@ -423,15 +457,14 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
                                               vertical: 4,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Colors.green.withOpacity(
-                                                0.1,
+                                              color: Colors.green.withValues(
+                                                alpha: 0.1,
                                               ),
                                               borderRadius:
                                                   BorderRadius.circular(6),
                                               border: Border.all(
-                                                color: Colors.green.withOpacity(
-                                                  0.3,
-                                                ),
+                                                color: Colors.green
+                                                  ..withValues(alpha: 0.1),
                                               ),
                                             ),
                                             child: Text(
@@ -455,7 +488,6 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
                                       ],
                                     ],
                                   ),
-
                                   trailing: isMobil
                                       ? null
                                       : Row(

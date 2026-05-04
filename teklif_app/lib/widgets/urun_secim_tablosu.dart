@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import '../models/teklif_satiri_model.dart';
 import 'base_card.dart';
 
@@ -85,6 +86,7 @@ class UrunSecimTablosu extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: const [
+          SizedBox(width: 48),
           Expanded(
             flex: 3,
             child: Text(
@@ -129,10 +131,49 @@ class UrunSecimTablosu extends StatelessWidget {
   Widget _buildSatir(int index, SatirYonetici yonetici) {
     TeklifSatiri satir = yonetici.veri;
 
+    Map<String, dynamic>? seciliUrun;
+    try {
+      seciliUrun = sistemUrunleri.firstWhere((e) => e["Id"] == satir.urunId);
+    } catch (e) {}
+
+    String? gorselBase64 = seciliUrun?["UrunGorsel"]?.toString();
+    if (gorselBase64 != null) {
+      gorselBase64 = gorselBase64.replaceAll(RegExp(r'\s+'), '');
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         children: [
+          Container(
+            width: 40,
+            height: 40,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: (gorselBase64 != null && gorselBase64.isNotEmpty)
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.memory(
+                      base64Decode(gorselBase64),
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, err, stack) => const Icon(
+                        Icons.broken_image,
+                        size: 20,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  )
+                : const Icon(
+                    Icons.image_not_supported,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
+          ),
+
           Expanded(
             flex: 3,
             child: DropdownButtonFormField<int>(
@@ -142,14 +183,44 @@ class UrunSecimTablosu extends StatelessWidget {
                 isDense: true,
                 hintText: "Ürün Seçin...",
               ),
-              items: sistemUrunleri
-                  .map(
-                    (u) => DropdownMenuItem<int>(
-                      value: u["Id"],
-                      child: Text(u["UrunAdi"].toString()),
-                    ),
-                  )
-                  .toList(),
+              items: sistemUrunleri.map((u) {
+                String? gorselBase64 = u["UrunGorsel"]?.toString();
+                if (gorselBase64 != null) {
+                  gorselBase64 = gorselBase64.replaceAll(RegExp(r'\s+'), '');
+                }
+
+                return DropdownMenuItem<int>(
+                  value: u["Id"],
+                  child: Row(
+                    children: [
+                      if (gorselBase64 != null && gorselBase64.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.memory(
+                            base64Decode(gorselBase64),
+                            width: 24,
+                            height: 24,
+                            fit: BoxFit.cover,
+                            errorBuilder: (ctx, err, stack) => const Icon(
+                              Icons.broken_image,
+                              size: 24,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        )
+                      else
+                        const Icon(
+                          Icons.inventory_2,
+                          size: 24,
+                          color: Colors.grey,
+                        ),
+
+                      const SizedBox(width: 8),
+                      Text(u["UrunAdi"].toString()),
+                    ],
+                  ),
+                );
+              }).toList(),
               onChanged: (val) {
                 if (val != null) {
                   final secilen = sistemUrunleri.firstWhere(

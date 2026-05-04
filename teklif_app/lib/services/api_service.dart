@@ -42,6 +42,9 @@ class ApiService {
     String? yeniVergiDairesi,
     String? yeniVergiNo,
     String? yeniAdres,
+    String? yeniUlke,
+    String? yeniSehir,
+    String? yeniIlce,
     String? doviz,
     String? odemeTuru,
   }) async {
@@ -60,6 +63,9 @@ class ApiService {
           "yeniVergiDairesi": yeniVergiDairesi,
           "yeniVergiNo": yeniVergiNo,
           "yeniAdres": yeniAdres,
+          "yeniUlke": yeniUlke,
+          "yeniSehir": yeniSehir,
+          "yeniIlce": yeniIlce,
           "araToplam": araToplam,
           "toplamIndirim": toplamIndirim,
           "genelToplam": teklif.genelToplam,
@@ -125,6 +131,35 @@ class ApiService {
     }
   }
 
+  Future<String?> uploadPdfVeLinkAl(Uint8List pdfBytes, String teklifNo) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$_baseUrl/teklifler/pdf-yukle'),
+      );
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'pdf',
+          pdfBytes,
+          filename: 'Teklif_$teklifNo.pdf',
+        ),
+      );
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final veri = json.decode(response.body);
+        return veri['url'];
+      }
+      return null;
+    } catch (e) {
+      debugPrint("PDF Yükleme Hatası: $e");
+      return null;
+    }
+  }
+
   // Müşteri
 
   Future<List<dynamic>> getMusteriler() async {
@@ -140,6 +175,9 @@ class ApiService {
     String vDairesi,
     String vNo,
     String adres,
+    String ulke,
+    String sehir,
+    String ilce,
   ) async {
     try {
       final body = jsonEncode({
@@ -150,6 +188,9 @@ class ApiService {
         "vergiDairesi": vDairesi,
         "vergiNo": vNo,
         "adres": adres,
+        "ulke": ulke,
+        "sehir": sehir,
+        "ilce": ilce,
       });
       final response = await http.post(
         Uri.parse('$_baseUrl/musteriler'),
@@ -171,6 +212,9 @@ class ApiService {
     String vDairesi,
     String vNo,
     String adres,
+    String ulke,
+    String sehir,
+    String ilce,
   ) async {
     try {
       final body = jsonEncode({
@@ -181,6 +225,9 @@ class ApiService {
         "vergiDairesi": vDairesi,
         "vergiNo": vNo,
         "adres": adres,
+        "ulke": ulke,
+        "sehir": sehir,
+        "ilce": ilce,
       });
       final response = await http.put(
         Uri.parse('$_baseUrl/musteriler/$id'),
@@ -216,6 +263,7 @@ class ApiService {
     String paraBirimi,
     int kdv,
     String aciklama,
+    String? urunGorsel,
   ) async {
     try {
       final body = jsonEncode({
@@ -225,6 +273,7 @@ class ApiService {
         "paraBirimi": paraBirimi,
         "kdvOrani": kdv,
         "aciklama": aciklama,
+        "urunGorsel": urunGorsel,
       });
       final response = await http.post(
         Uri.parse('$_baseUrl/urunler'),
@@ -245,6 +294,7 @@ class ApiService {
     String paraBirimi,
     int kdv,
     String aciklama,
+    String? urunGorsel,
   ) async {
     try {
       final body = jsonEncode({
@@ -254,6 +304,7 @@ class ApiService {
         "paraBirimi": paraBirimi,
         "kdvOrani": kdv,
         "aciklama": aciklama,
+        "urunGorsel": urunGorsel,
       });
       final response = await http.put(
         Uri.parse('$_baseUrl/urunler/$id'),

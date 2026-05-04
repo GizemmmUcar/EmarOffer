@@ -41,6 +41,22 @@ class _MusterilerEkraniState extends State<MusterilerEkrani> {
   }
 
   void _musteriDetayGoster(Map<String, dynamic> musteri) {
+    List<String> lokasyonList = [];
+    if (musteri["Ilce"] != null && musteri["Ilce"].toString().isNotEmpty)
+      lokasyonList.add(musteri["Ilce"]);
+    if (musteri["Sehir"] != null && musteri["Sehir"].toString().isNotEmpty)
+      lokasyonList.add(musteri["Sehir"]);
+    if (musteri["Ulke"] != null && musteri["Ulke"].toString().isNotEmpty)
+      lokasyonList.add(musteri["Ulke"]);
+
+    String adresFormatli = musteri["Adres"]?.toString() ?? "";
+    if (lokasyonList.isNotEmpty) {
+      String hiyerarsi = lokasyonList.join(" / ");
+      adresFormatli = adresFormatli.isNotEmpty
+          ? "$adresFormatli\n\n$hiyerarsi"
+          : hiyerarsi;
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -68,7 +84,7 @@ class _MusterilerEkraniState extends State<MusterilerEkrani> {
               _detayKart(Icons.person, "Yetkili Kişi", musteri["YetkiliKisi"]),
               _detayKart(Icons.phone, "Telefon", musteri["Telefon"]),
               _detayKart(Icons.email, "E-posta", musteri["Eposta"]),
-              _detayKart(Icons.location_on, "Adres", musteri["Adres"]),
+              _detayKart(Icons.location_on, "Adres & Konum", adresFormatli),
               _detayKart(
                 Icons.account_balance,
                 "Vergi Dairesi / No",
@@ -284,7 +300,15 @@ class _MusterilerEkraniState extends State<MusterilerEkrani> {
                             ),
 
                             subtitle: Text(
-                              "Müşteri Kaydı",
+                              musteri["Sehir"] != null &&
+                                      musteri["Sehir"].toString().isNotEmpty
+                                  ? (musteri["Ilce"] != null &&
+                                            musteri["Ilce"]
+                                                .toString()
+                                                .isNotEmpty
+                                        ? "${musteri["Ilce"]} / ${musteri["Sehir"]}"
+                                        : musteri["Sehir"])
+                                  : "Müşteri Kaydı",
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.grey.shade500,

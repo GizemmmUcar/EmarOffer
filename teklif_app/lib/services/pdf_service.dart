@@ -3,8 +3,16 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../models/teklif_satiri_model.dart';
 
 class PdfService {
+  static const PdfColor _primaryColor = PdfColor.fromInt(0xFF0F4C81);
+  static const PdfColor _secondaryColor = PdfColor.fromInt(0xFFFAFAFA);
+  static const PdfColor _textColor = PdfColor.fromInt(0xFF1F2937);
+  static const PdfColor _accentColor = PdfColor.fromInt(0xFF4B5563);
+  static const PdfColor _dangerColor = PdfColor.fromInt(0xFF991B1B);
+  static const PdfColor _borderColor = PdfColor.fromInt(0xFFD1D5DB);
+
   static Future<Uint8List> teklifPdfOlustur({
     required Map<String, dynamic> teklif,
     required List<dynamic> urunler,
@@ -16,34 +24,22 @@ class PdfService {
     final fontBold = await PdfGoogleFonts.robotoBold();
     final fontItalic = await PdfGoogleFonts.robotoItalic();
 
-    const primaryColor = PdfColor.fromInt(0xFF3F51B5);
-    const secondaryColor = PdfColor.fromInt(0xFFE8EAF6);
-    const textColor = PdfColor.fromInt(0xFF374151);
-
     final String doviz = teklif["Doviz"]?.toString() ?? "TRY";
-    final String firmaAdi = teklif["FirmaAdi"]?.toString() ?? "Sayın Müşteri";
-    final String notlar = teklif["GenelNot"]?.toString() ?? "";
-    final String odemeTuru = teklif["OdemeTuru"]?.toString() ?? "-";
-    final int gecerlilik = teklif["GecerlilikGunu"] ?? 7;
     final String hamTarih = teklif["OlusturmaTarihi"]?.toString() ?? "";
     DateTime tarihObj = DateTime.tryParse(hamTarih) ?? DateTime.now();
+
     final String formatliTarih =
         "${tarihObj.day.toString().padLeft(2, '0')}.${tarihObj.month.toString().padLeft(2, '0')}.${tarihObj.year}";
 
-    final String sirketAdi =
-        sirket["SirketAdi"]?.toString() ?? sirket["Unvan"]?.toString() ?? "";
-    final String sirketAdres = sirket["Adres"]?.toString() ?? "";
-    final String sirketTelefon = sirket["Telefon"]?.toString() ?? "";
-    final String sirketEposta =
-        sirket["Eposta"]?.toString() ?? sirket["Email"]?.toString() ?? "";
-    final String sirketWeb = sirket["WebSitesi"]?.toString() ?? "";
-    final String vergiDairesi = sirket["VergiDairesi"]?.toString() ?? "";
-    final String vergiNo = sirket["VergiNo"]?.toString() ?? "";
-    final String bankaBilgisi =
-        sirket["BankaBilgileri"]?.toString() ??
-        sirket["Iban"]?.toString() ??
-        "";
-    final String logoBase64 = sirket["Logo"]?.toString() ?? "";
+    final int gecerlilikGunu = teklif["GecerlilikGunu"] ?? 7;
+    DateTime bitisObj = tarihObj.add(Duration(days: gecerlilikGunu));
+
+    final String gecerlilikTarihi =
+        "${bitisObj.day.toString().padLeft(2, '0')}.${bitisObj.month.toString().padLeft(2, '0')}.${bitisObj.year}";
+
+    final List<TeklifSatiri> satirlar = urunler
+        .map((u) => TeklifSatiri.fromJson(u))
+        .toList();
 
     pdf.addPage(
       pw.MultiPage(
@@ -52,38 +48,19 @@ class PdfService {
         theme: pw.ThemeData(
           defaultTextStyle: pw.TextStyle(
             font: fontRegular,
-            color: textColor,
+            color: _textColor,
             fontSize: 10,
           ),
         ),
-        header: (context) => _buildHeader(
-          fontBold,
-          primaryColor,
-          sirketAdi,
-          sirketAdres,
-          sirketTelefon,
-          sirketEposta,
-          sirketWeb,
-          vergiDairesi,
-          vergiNo,
-          logoBase64,
-        ),
+        header: (context) => _buildHeader(fontBold, sirket),
         footer: (context) =>
-            _buildFooter(fontRegular, context.pageNumber, context.pagesCount),
+            _buildFooter(context.pageNumber, context.pagesCount),
         build: (context) => [
           pw.SizedBox(height: 20),
           _buildMusteriBilgileri(fontBold, fontRegular, teklif, formatliTarih),
-          pw.SizedBox(height: 30),
-          _buildUrunlerTablosu(
-            urunler,
-            fontBold,
-            fontRegular,
-            primaryColor,
-            secondaryColor,
-            doviz,
-          ),
+          pw.SizedBox(height: 25),
+          _buildUrunlerTablosu(satirlar, urunler, fontBold, doviz),
           pw.SizedBox(height: 20),
-
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -92,25 +69,25 @@ class PdfService {
                 child: _buildNotlar(
                   fontBold,
                   fontItalic,
-                  notlar,
-                  odemeTuru,
-                  gecerlilik,
-                  bankaBilgisi,
+                  teklif,
+                  sirket,
+                  gecerlilikTarihi,
                 ),
               ),
               pw.SizedBox(width: 20),
               pw.Expanded(
                 flex: 3,
-                child: _buildToplamlar(teklif, fontBold, primaryColor, doviz),
+                child: _buildToplamlar(satirlar, fontBold, doviz),
               ),
             ],
           ),
-
           pw.SizedBox(height: 50),
           _buildImzaAlani(
             fontBold,
-            sirket["Yetkili"]?.toString() ?? sirketAdi,
-            firmaAdi,
+            sirket["Yetkili"]?.toString() ??
+                sirket["SirketAdi"]?.toString() ??
+                "",
+            teklif["FirmaAdi"]?.toString() ?? "Müşteri",
           ),
         ],
       ),
@@ -119,18 +96,18 @@ class PdfService {
     return pdf.save();
   }
 
-  static pw.Widget _buildHeader(
-    pw.Font fontBold,
-    PdfColor primaryColor,
-    String sirketAdi,
-    String adres,
-    String telefon,
-    String eposta,
-    String web,
-    String vDairesi,
-    String vNo,
-    String logoBase64,
-  ) {
+  static pw.Widget _buildHeader(pw.Font fontBold, Map<String, dynamic> sirket) {
+    final String sirketAdi =
+        sirket["SirketAdi"]?.toString() ?? sirket["Unvan"]?.toString() ?? "";
+    final String adres = sirket["Adres"]?.toString() ?? "";
+    final String telefon = sirket["Telefon"]?.toString() ?? "";
+    final String eposta =
+        sirket["Eposta"]?.toString() ?? sirket["Email"]?.toString() ?? "";
+    final String web = sirket["WebSitesi"]?.toString() ?? "";
+    final String vDairesi = sirket["VergiDairesi"]?.toString() ?? "";
+    final String vNo = sirket["VergiNo"]?.toString() ?? "";
+    final String logoBase64 = sirket["Logo"]?.toString() ?? "";
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -148,15 +125,19 @@ class PdfService {
                         : "ŞİRKET ÜNVANI",
                     style: pw.TextStyle(
                       font: fontBold,
-                      fontSize: 18,
-                      color: primaryColor,
+                      fontSize: 20,
+                      color: _primaryColor,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  pw.SizedBox(height: 6),
+                  pw.SizedBox(height: 8),
                   if (adres.isNotEmpty)
                     pw.Text(
                       adres,
-                      style: pw.TextStyle(color: PdfColors.grey700),
+                      style: const pw.TextStyle(
+                        color: PdfColors.black,
+                        fontSize: 10,
+                      ),
                     ),
                   pw.SizedBox(height: 4),
                   if (telefon.isNotEmpty || eposta.isNotEmpty || web.isNotEmpty)
@@ -166,15 +147,19 @@ class PdfService {
                         if (eposta.isNotEmpty) "E-posta: $eposta",
                         if (web.isNotEmpty) "Web: $web",
                       ].join("  |  "),
-                      style: pw.TextStyle(color: PdfColors.grey700),
+                      style: const pw.TextStyle(
+                        color: PdfColors.black,
+                        fontSize: 10,
+                      ),
                     ),
                   if (vDairesi.isNotEmpty || vNo.isNotEmpty) ...[
-                    pw.SizedBox(height: 2),
+                    pw.SizedBox(height: 4),
                     pw.Text(
-                      "V. Dairesi: ${vDairesi.isNotEmpty ? vDairesi : '-'}  |  V. No: ${vNo.isNotEmpty ? vNo : '-'}",
+                      "V.D: ${vDairesi.isNotEmpty ? vDairesi : '-'}   |   V.No: ${vNo.isNotEmpty ? vNo : '-'}",
                       style: pw.TextStyle(
-                        color: PdfColors.grey700,
+                        color: PdfColors.black,
                         font: fontBold,
+                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -190,13 +175,11 @@ class PdfService {
                   pw.MemoryImage(base64Decode(logoBase64)),
                   fit: pw.BoxFit.contain,
                 ),
-              )
-            else
-              pw.SizedBox(width: 10),
+              ),
           ],
         ),
         pw.SizedBox(height: 16),
-        pw.Divider(color: primaryColor, thickness: 2),
+        pw.Divider(color: _primaryColor, thickness: 1.5),
       ],
     );
   }
@@ -207,268 +190,360 @@ class PdfService {
     Map<String, dynamic> teklif,
     String formatliTarih,
   ) {
-    final String firmaAdi = teklif["FirmaAdi"]?.toString() ?? "Bilinmiyor";
-    final String adres = teklif["Adres"]?.toString() ?? "";
+    final String firmaAdi = teklif["FirmaAdi"]?.toString() ?? "MÜŞTERİ";
     final String telefon = teklif["Telefon"]?.toString() ?? "";
     final String eposta = teklif["Eposta"]?.toString() ?? "";
     final String vDairesi = teklif["VergiDairesi"]?.toString() ?? "";
     final String vNo = teklif["VergiNo"]?.toString() ?? "";
+    final acikAdres = teklif["Adres"]?.toString().trim() ?? "";
+    final ilce = teklif["Ilce"]?.toString().trim() ?? "";
+    final sehir = teklif["Sehir"]?.toString().trim() ?? "";
+    final ulke = teklif["Ulke"]?.toString().trim() ?? "";
 
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  "Müşteri / Alıcı:",
-                  style: pw.TextStyle(
-                    font: fontBold,
-                    fontSize: 11,
-                    color: PdfColors.grey700,
-                  ),
-                ),
-                pw.SizedBox(height: 4),
-                pw.Text(
-                  firmaAdi,
-                  style: pw.TextStyle(font: fontBold, fontSize: 14),
-                ),
-                pw.SizedBox(height: 4),
+    List<String> adresParcalari = [];
+    if (acikAdres.isNotEmpty) adresParcalari.add(acikAdres);
 
-                if (adres.isNotEmpty)
-                  pw.Text(
-                    adres,
-                    style: pw.TextStyle(font: fontRegular, fontSize: 10),
-                  ),
-                if (adres.isNotEmpty) pw.SizedBox(height: 2),
+    String lokasyon = "";
+    if (ilce.isNotEmpty) lokasyon += ilce;
+    if (sehir.isNotEmpty) lokasyon += lokasyon.isNotEmpty ? " / $sehir" : sehir;
+    if (lokasyon.isNotEmpty) adresParcalari.add(lokasyon);
+    if (ulke.isNotEmpty) adresParcalari.add(ulke);
 
-                if (telefon.isNotEmpty)
-                  pw.Text(
-                    "Tel: $telefon",
-                    style: pw.TextStyle(font: fontRegular, fontSize: 10),
-                  ),
+    final tamAdresMetni = adresParcalari.join('\n');
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          firmaAdi.toUpperCase(),
+          style: pw.TextStyle(
+            font: fontBold,
+            fontSize: 13,
+            color: _primaryColor,
+          ),
+        ),
+        pw.SizedBox(height: 6),
 
-                if (eposta.isNotEmpty)
-                  pw.Text(
-                    "E-posta: $eposta",
-                    style: pw.TextStyle(font: fontRegular, fontSize: 10),
-                  ),
-
-                if (vDairesi.isNotEmpty || vNo.isNotEmpty) ...[
-                  pw.SizedBox(height: 2),
-                  pw.Text(
-                    "V. Dairesi: ${vDairesi.isNotEmpty ? vDairesi : '-'} | V. No: ${vNo.isNotEmpty ? vNo : '-'}",
-                    style: pw.TextStyle(font: fontRegular, fontSize: 10),
-                  ),
-                ],
-              ],
+        if (tamAdresMetni.isNotEmpty)
+          pw.Text(
+            tamAdresMetni,
+            style: pw.TextStyle(
+              font: fontRegular,
+              fontSize: 10,
+              lineSpacing: 1.5,
             ),
           ),
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.end,
-            children: [
-              pw.Text(
-                "Tarih:",
-                style: pw.TextStyle(
-                  font: fontBold,
-                  fontSize: 11,
-                  color: PdfColors.grey700,
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                formatliTarih,
-                style: pw.TextStyle(font: fontBold, fontSize: 12),
-              ),
-            ],
+
+        if (tamAdresMetni.isNotEmpty) pw.SizedBox(height: 4),
+
+        if (telefon.isNotEmpty)
+          pw.Text(
+            "Tel: $telefon",
+            style: pw.TextStyle(font: fontRegular, fontSize: 10),
+          ),
+        if (eposta.isNotEmpty)
+          pw.Text(
+            "E-posta: $eposta",
+            style: pw.TextStyle(font: fontRegular, fontSize: 10),
+          ),
+        if (vDairesi.isNotEmpty || vNo.isNotEmpty) ...[
+          pw.SizedBox(height: 2),
+          pw.Text(
+            "V.D: ${vDairesi.isNotEmpty ? vDairesi : '-'}   |   V.No: ${vNo.isNotEmpty ? vNo : '-'}",
+            style: pw.TextStyle(font: fontRegular, fontSize: 10),
           ),
         ],
-      ),
+        pw.SizedBox(height: 8),
+        pw.Text(
+          "Düzenleme Tarihi: $formatliTarih",
+          style: pw.TextStyle(font: fontBold, fontSize: 10),
+        ),
+      ],
     );
   }
 
   static pw.Widget _buildUrunlerTablosu(
-    List<dynamic> urunler,
+    List<TeklifSatiri> satirlar,
+    List<dynamic> rawUrunler,
     pw.Font fontBold,
-    pw.Font fontRegular,
-    PdfColor primaryColor,
-    PdfColor secondaryColor,
     String doviz,
   ) {
     final headers = [
       'Sıra',
       'Ürün / Hizmet Açıklaması',
       'Miktar',
-      'B. Fiyat',
-      'iskonto',
+      'Birim Fiyat',
+      'İsk.',
+      '% KDV',
       'Tutar',
     ];
-    final data = List<List<String>>.generate(urunler.length, (index) {
-      final u = urunler[index];
-      final miktar = u["Miktar"]?.toString() ?? "1";
-      final birimFiyat =
-          double.tryParse(
-            u["BirimFiyat"]?.toString() ?? "0",
-          )?.toStringAsFixed(2) ??
-          "0.00";
-      final iskonto = u["IskontoYuzdesi"]?.toString() ?? "0";
-      double satirToplami =
-          (double.parse(birimFiyat) * int.parse(miktar)) *
-          (1 - (double.parse(iskonto) / 100));
-      return [
-        (index + 1).toString(),
-        u["UrunAdi"]?.toString() ?? "Ürün",
-        miktar,
-        "$birimFiyat $doviz",
-        (iskonto == "0" ? "-" : "%$iskonto"),
-        "${satirToplami.toStringAsFixed(2)} $doviz",
-      ];
-    });
 
-    return pw.TableHelper.fromTextArray(
-      headers: headers,
-      data: data,
-      border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-      headerStyle: pw.TextStyle(
-        font: fontBold,
-        color: PdfColors.white,
-        fontSize: 10,
-      ),
-      headerDecoration: pw.BoxDecoration(color: primaryColor),
-      cellHeight: 25,
-      cellStyle: pw.TextStyle(font: fontRegular, fontSize: 10),
-      cellAlignments: {
-        0: pw.Alignment.center,
-        1: pw.Alignment.centerLeft,
-        2: pw.Alignment.center,
-        3: pw.Alignment.centerRight,
-        4: pw.Alignment.center,
-        5: pw.Alignment.centerRight,
+    return pw.Table(
+      border: pw.TableBorder.all(color: _borderColor, width: 0.5),
+      columnWidths: {
+        0: const pw.FixedColumnWidth(25),
+        1: const pw.FlexColumnWidth(4),
+        2: const pw.FixedColumnWidth(35),
+        3: const pw.FixedColumnWidth(55),
+        4: const pw.FixedColumnWidth(30),
+        5: const pw.FixedColumnWidth(30),
+        6: const pw.FixedColumnWidth(65),
       },
-      oddRowDecoration: pw.BoxDecoration(color: secondaryColor),
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: _primaryColor),
+          children: headers
+              .map(
+                (h) => pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 4,
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      h.toUpperCase(),
+                      style: pw.TextStyle(
+                        font: fontBold,
+                        color: PdfColors.white,
+                        fontSize: 8,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+        ...List.generate(satirlar.length, (index) {
+          final satir = satirlar[index];
+          final bool isOdd = index % 2 != 0;
+
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(
+              color: isOdd ? _secondaryColor : PdfColors.white,
+            ),
+            verticalAlignment: pw.TableCellVerticalAlignment.middle,
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Center(
+                  child: pw.Text(
+                    (index + 1).toString(),
+                    style: const pw.TextStyle(fontSize: 9),
+                  ),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  satir.urunAdi.isNotEmpty ? satir.urunAdi : "Ürün",
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Center(
+                  child: pw.Text(
+                    satir.miktar.toString(),
+                    style: const pw.TextStyle(fontSize: 9),
+                  ),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Text(
+                    "${satir.birimFiyat.toStringAsFixed(2)} $doviz",
+                    style: const pw.TextStyle(fontSize: 9),
+                  ),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Center(
+                  child: pw.Text(
+                    satir.iskontoYuzdesi == 0
+                        ? "-"
+                        : "%${satir.iskontoYuzdesi.toStringAsFixed(0)}",
+                    style: const pw.TextStyle(fontSize: 9),
+                  ),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Center(
+                  child: pw.Text(
+                    satir.kdvOrani == 0
+                        ? "-"
+                        : "%${satir.kdvOrani.toStringAsFixed(0)}",
+                    style: const pw.TextStyle(fontSize: 9),
+                  ),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Text(
+                    "${satir.genelToplam.toStringAsFixed(2)} $doviz",
+                    style: pw.TextStyle(font: fontBold, fontSize: 9),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+      ],
     );
   }
 
   static pw.Widget _buildToplamlar(
-    Map<String, dynamic> teklif,
+    List<TeklifSatiri> satirlar,
     pw.Font fontBold,
-    PdfColor primaryColor,
     String doviz,
   ) {
-    final araToplam =
-        double.tryParse(
-          teklif["AraToplam"]?.toString() ?? "0",
-        )?.toStringAsFixed(2) ??
-        "0.00";
-    final indirim =
-        double.tryParse(
-          teklif["ToplamIndirim"]?.toString() ?? "0",
-        )?.toStringAsFixed(2) ??
-        "0.00";
-    final genelToplam =
-        double.tryParse(
-          teklif["GenelToplam"]?.toString() ?? "0",
-        )?.toStringAsFixed(2) ??
-        "0.00";
+    double araToplam = satirlar.fold(0, (sum, item) => sum + item.hamToplam);
+    double toplamIndirim = satirlar.fold(
+      0,
+      (sum, item) => sum + item.indirimTutari,
+    );
+    double kdvHaricTutar = satirlar.fold(
+      0,
+      (sum, item) => sum + item.kdvHaricTutar,
+    );
+    double toplamKdv = satirlar.fold(0, (sum, item) => sum + item.kdvTutari);
+    double genelToplam = satirlar.fold(
+      0,
+      (sum, item) => sum + item.genelToplam,
+    );
+
     return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: primaryColor, width: 1),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        border: pw.Border.all(color: _borderColor, width: 1),
       ),
       child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          _hesapSatiri("Ara Toplam:", "$araToplam $doviz", fontBold),
-          pw.SizedBox(height: 4),
-          _hesapSatiri(
-            "İndirim:",
-            "-$indirim $doviz",
-            fontBold,
-            color: PdfColors.red700,
+          _ozetSatiri("Ara Toplam", "${araToplam.toStringAsFixed(2)} $doviz"),
+
+          if (toplamIndirim > 0)
+            _ozetSatiri(
+              "Toplam İndirim",
+              "-${toplamIndirim.toStringAsFixed(2)} $doviz",
+              renk: _dangerColor,
+            ),
+
+          if (toplamIndirim > 0)
+            _ozetSatiri(
+              "KDV Hariç Tutar",
+              "${kdvHaricTutar.toStringAsFixed(2)} $doviz",
+            ),
+
+          pw.Divider(color: _borderColor, thickness: 0.5),
+
+          _ozetSatiri(
+            "Toplam KDV",
+            "+${toplamKdv.toStringAsFixed(2)} $doviz",
+            renk: _accentColor,
           ),
-          pw.Divider(color: PdfColors.grey400),
-          _hesapSatiri(
-            "Genel Toplam:",
-            "$genelToplam $doviz",
-            fontBold,
-            fontSize: 12,
-            color: primaryColor,
+
+          pw.SizedBox(height: 6),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            color: _primaryColor,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  "GENEL TOPLAM",
+                  style: pw.TextStyle(
+                    font: fontBold,
+                    color: PdfColors.white,
+                    fontSize: 11,
+                  ),
+                ),
+                pw.Text(
+                  "${genelToplam.toStringAsFixed(2)} $doviz",
+                  style: pw.TextStyle(
+                    font: fontBold,
+                    color: PdfColors.white,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  static pw.Widget _hesapSatiri(
-    String baslik,
-    String deger,
-    pw.Font fontBold, {
-    PdfColor color = PdfColors.black,
-    double fontSize = 10,
-  }) {
-    return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      children: [
-        pw.Text(
-          baslik,
-          style: pw.TextStyle(font: fontBold, fontSize: fontSize, color: color),
-        ),
-        pw.Text(
-          deger,
-          style: pw.TextStyle(font: fontBold, fontSize: fontSize, color: color),
-        ),
-      ],
     );
   }
 
   static pw.Widget _buildNotlar(
     pw.Font fontBold,
     pw.Font fontItalic,
-    String notlar,
-    String odemeTuru,
-    int gecerlilik,
-    String bankaBilgisi,
+    Map<String, dynamic> teklif,
+    Map<String, dynamic> sirket,
+    String gecerlilikTarihi,
   ) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          "Ödeme ve Şartlar",
-          style: pw.TextStyle(font: fontBold, color: PdfColors.grey700),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Text("• Ödeme Türü: $odemeTuru"),
-        pw.Text("• Teklif Geçerlilik Süresi: $gecerlilik Gün"),
-        if (bankaBilgisi.isNotEmpty) ...[
-          pw.SizedBox(height: 12),
+    final odemeTuru = teklif["OdemeTuru"]?.toString() ?? "-";
+    final bankaBilgisi =
+        sirket["BankaBilgileri"]?.toString() ??
+        sirket["Iban"]?.toString() ??
+        "";
+    final notlar = teklif["GenelNot"]?.toString() ?? "";
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: _borderColor, width: 0.5),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
           pw.Text(
-            "Banka ve Ödeme Bilgileri:",
-            style: pw.TextStyle(font: fontBold, color: PdfColors.grey700),
+            "TİCARİ ŞARTLAR VE NOTLAR",
+            style: pw.TextStyle(
+              font: fontBold,
+              fontSize: 9,
+              color: _primaryColor,
+            ),
           ),
-          pw.SizedBox(height: 4),
-          pw.Text(bankaBilgisi, style: pw.TextStyle(color: PdfColors.grey800)),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            "Ödeme Türü: $odemeTuru",
+            style: const pw.TextStyle(fontSize: 9),
+          ),
+          pw.Text(
+            "Teklif Geçerlilik Tarihi: $gecerlilikTarihi",
+            style: const pw.TextStyle(fontSize: 9),
+          ),
+          if (bankaBilgisi.isNotEmpty) ...[
+            pw.SizedBox(height: 8),
+            pw.Text(
+              "Banka ve Hesap Bilgileri:",
+              style: pw.TextStyle(font: fontBold, fontSize: 9),
+            ),
+            pw.SizedBox(height: 2),
+            pw.Text(bankaBilgisi, style: const pw.TextStyle(fontSize: 9)),
+          ],
+          if (notlar.isNotEmpty) ...[
+            pw.SizedBox(height: 8),
+            pw.Text(
+              "Ek Açıklama:",
+              style: pw.TextStyle(font: fontBold, fontSize: 9),
+            ),
+            pw.SizedBox(height: 2),
+            pw.Text(
+              notlar,
+              style: pw.TextStyle(
+                font: fontItalic,
+                fontSize: 9,
+                color: _accentColor,
+              ),
+            ),
+          ],
         ],
-        if (notlar.isNotEmpty) ...[
-          pw.SizedBox(height: 12),
-          pw.Text(
-            "Açıklama / Notlar:",
-            style: pw.TextStyle(font: fontBold, color: PdfColors.grey700),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            notlar,
-            style: pw.TextStyle(font: fontItalic, color: PdfColors.grey800),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
@@ -480,55 +555,103 @@ class PdfService {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Column(
-          children: [
-            pw.Text("TEKLİFİ HAZIRLAYAN", style: pw.TextStyle(font: fontBold)),
-            pw.SizedBox(height: 4),
-            pw.Text(
-              sirketYetkilisi,
-              style: pw.TextStyle(color: PdfColors.grey700),
-            ),
-            pw.SizedBox(height: 40),
-            pw.Text(
-              "Kaşe / İmza",
-              style: pw.TextStyle(color: PdfColors.grey500),
-            ),
-          ],
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                "TEKLİFİ DÜZENLEYEN",
+                style: pw.TextStyle(font: fontBold, fontSize: 10),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Text(sirketYetkilisi, style: const pw.TextStyle(fontSize: 10)),
+              pw.SizedBox(height: 40),
+              pw.Text(
+                "Kaşe / İmza",
+                style: const pw.TextStyle(
+                  fontSize: 9,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ],
+          ),
         ),
-        pw.Column(
-          children: [
-            pw.Text("TEKLİFİ ONAYLAYAN", style: pw.TextStyle(font: fontBold)),
-            pw.SizedBox(height: 4),
-            pw.Text(firmaAdi, style: pw.TextStyle(color: PdfColors.grey700)),
-            pw.SizedBox(height: 40),
-            pw.Text(
-              "Kaşe / İmza",
-              style: pw.TextStyle(color: PdfColors.grey500),
-            ),
-          ],
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                "MÜŞTERİ ONAYI",
+                style: pw.TextStyle(font: fontBold, fontSize: 10),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Text(
+                firmaAdi,
+                style: const pw.TextStyle(fontSize: 10),
+                textAlign: pw.TextAlign.center,
+                maxLines: 1,
+              ),
+              pw.SizedBox(height: 40),
+              pw.Text(
+                "Kaşe / İmza",
+                style: const pw.TextStyle(
+                  fontSize: 9,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  static pw.Widget _buildFooter(
-    pw.Font fontRegular,
-    int pageNumber,
-    int pagesCount,
-  ) {
+  static pw.Widget _ozetSatiri(
+    String etiket,
+    String deger, {
+    PdfColor? renk,
+    bool isBold = false,
+    double fontSize = 10,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 3),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(
+            etiket,
+            style: pw.TextStyle(
+              fontSize: fontSize,
+              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            ),
+          ),
+          pw.Text(
+            deger,
+            style: pw.TextStyle(
+              color: renk,
+              fontSize: fontSize,
+              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildFooter(int pageNumber, int pagesCount) {
     return pw.Column(
       children: [
-        pw.Divider(color: PdfColors.grey300),
+        pw.Divider(color: _borderColor, thickness: 0.5),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              "Bu belge sistem tarafından otomatik olarak oluşturulmuştur.",
-              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+              "Bu belge mali ve ticari nitelik taşımaktadır.",
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
             ),
             pw.Text(
               "Sayfa $pageNumber / $pagesCount",
-              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
             ),
           ],
         ),

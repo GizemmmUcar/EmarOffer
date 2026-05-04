@@ -1,149 +1,355 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../services/api_service.dart';
 
-class GrafikBolumu extends StatelessWidget {
-  final List<dynamic> grafikVerileri;
+class GrafikBolumu extends StatefulWidget {
+  const GrafikBolumu({super.key});
 
-  const GrafikBolumu({super.key, required this.grafikVerileri});
+  @override
+  State<GrafikBolumu> createState() => _GrafikBolumuState();
+}
+
+class _GrafikBolumuState extends State<GrafikBolumu> {
+  final ApiService _apiService = ApiService();
+  bool _isLoading = true;
+  List<dynamic> _tumTeklifler = [];
+
+  String _secilenZaman = 'Haftalık';
+  final List<String> _zamanFiltreleri = [
+    'Haftalık',
+    '15 Günlük',
+    'Aylık',
+    'Yıllık',
+  ];
+
+  List<double> _grafikVerileri = [];
+  List<String> _altEtiketler = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _gercekVerileriCek();
+  }
+
+  Future<void> _gercekVerileriCek() async {
+    setState(() => _isLoading = true);
+    try {
+      final veriler = await _apiService.getTeklifler();
+      if (mounted) {
+        setState(() {
+          _tumTeklifler = veriler;
+          _isLoading = false;
+        });
+        _verileriGuncelle(_secilenZaman);
+      }
+    } catch (e) {
+      debugPrint("Grafik verisi çekilemedi: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _verileriGuncelle(String zaman) {
+    setState(() {
+      _secilenZaman = zaman;
+      _grafikVerileri = [];
+      _altEtiketler = [];
+
+      final now = DateTime.now();
+
+      if (zaman == 'Haftalık') {
+        final gunIsimleri = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+        for (int i = 6; i >= 0; i--) {
+          final date = now.subtract(Duration(days: i));
+          _altEtiketler.add(gunIsimleri[date.weekday - 1]);
+
+          int count = _tumTeklifler.where((t) {
+            if (t["OlusturmaTarihi"] == null) return false;
+            final tDate = DateTime.parse(t["OlusturmaTarihi"]);
+            return tDate.year == date.year &&
+                tDate.month == date.month &&
+                tDate.day == date.day;
+          }).length;
+
+          _grafikVerileri.add(count.toDouble());
+        }
+      } else if (zaman == '15 Günlük') {
+        for (int i = 14; i >= 0; i--) {
+          final date = now.subtract(Duration(days: i));
+          _altEtiketler.add("${date.day}/${date.month}");
+
+          int count = _tumTeklifler.where((t) {
+            if (t["OlusturmaTarihi"] == null) return false;
+            final tDate = DateTime.parse(t["OlusturmaTarihi"]);
+            return tDate.year == date.year &&
+                tDate.month == date.month &&
+                tDate.day == date.day;
+          }).length;
+
+          _grafikVerileri.add(count.toDouble());
+        }
+      } else if (zaman == 'Aylık') {
+        _altEtiketler = ['4 H. Önce', '3 H. Önce', '2 H. Önce', 'Bu Hafta'];
+        for (int i = 3; i >= 0; i--) {
+          final baslangic = now.subtract(Duration(days: (i * 7) + 7));
+          final bitis = now.subtract(Duration(days: i * 7));
+
+          int count = _tumTeklifler.where((t) {
+            if (t["OlusturmaTarihi"] == null) return false;
+            final tDate = DateTime.parse(t["OlusturmaTarihi"]);
+            return tDate.isAfter(baslangic) &&
+                tDate.isBefore(bitis.add(const Duration(days: 1)));
+          }).length;
+
+          _grafikVerileri.add(count.toDouble());
+        }
+      } else if (zaman == 'Yıllık') {
+        final ayIsimleri = [
+          'Oca',
+          'Şub',
+          'Mar',
+          'Nis',
+          'May',
+          'Haz',
+          'Tem',
+          'Ağu',
+          'Eyl',
+          'Eki',
+          'Kas',
+          'Ara',
+        ];
+        _altEtiketler = ayIsimleri;
+        for (int i = 1; i <= 12; i++) {
+          int count = _tumTeklifler.where((t) {
+            if (t["OlusturmaTarihi"] == null) return false;
+            final tDate = DateTime.parse(t["OlusturmaTarihi"]);
+            return tDate.year == now.year && tDate.month == i;
+          }).length;
+          _grafikVerileri.add(count.toDouble());
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    List<FlSpot> noktalar = [];
-    List<String> xEkseniGunleri = [];
-
-    if (grafikVerileri.isNotEmpty) {
-      for (int i = 0; i < grafikVerileri.length; i++) {
-        final data = grafikVerileri[i];
-        double sayi = (data["sayi"] ?? 0).toDouble();
-
-        noktalar.add(FlSpot(i.toDouble(), sayi));
-        xEkseniGunleri.add(data["gunAdi"].toString());
-      }
-    } else {
-      for (int i = 0; i < 7; i++) {
-        noktalar.add(FlSpot(i.toDouble(), 0));
-        xEkseniGunleri.add("");
-      }
+    double maxValue = 5;
+    if (_grafikVerileri.isNotEmpty) {
+      final computedMax = _grafikVerileri.reduce((a, b) => a > b ? a : b);
+      if (computedMax > 0) maxValue = computedMax * 1.2;
     }
 
     return Container(
-      width: double.infinity,
-      height: 400,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Colors.indigo.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Teklif Performansı",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF374151),
-            ),
-          ),
-          const Text(
-            "Son 7 Günlük Gerçek İstatistik",
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          const SizedBox(height: 30),
-
-          Expanded(
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) =>
-                      FlLine(color: Colors.grey[200], strokeWidth: 1),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        if (value % 1 != 0) return const Text('');
-                        return Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        );
-                      },
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Teklif Performansı",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937),
                     ),
                   ),
-
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        int index = value.toInt();
-                        if (index >= 0 && index < xEkseniGunleri.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              xEkseniGunleri[index],
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          );
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
-                ),
-
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: noktalar,
-                    isCurved: true,
-                    color: Colors.indigo,
-                    barWidth: 4,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: Colors.white,
-                          strokeWidth: 2,
-                          strokeColor: Colors.indigo,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.indigo.withOpacity(0.1),
-                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Seçili Dönem: $_secilenZaman İstatistikleri",
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                   ),
                 ],
               ),
-            ),
+
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _secilenZaman,
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.indigo,
+                      size: 20,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151),
+                    ),
+                    items: _zamanFiltreleri.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      if (newValue != null) {
+                        _verileriGuncelle(newValue);
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
+
+          const SizedBox(height: 30),
+
+          if (_isLoading)
+            const SizedBox(
+              height: 350,
+              child: Center(
+                child: CircularProgressIndicator(color: Colors.indigo),
+              ),
+            )
+          else
+            SizedBox(
+              height: 350,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxValue,
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => Colors.indigo.shade800,
+                      tooltipPadding: const EdgeInsets.all(8),
+                      tooltipMargin: 8,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          '${rod.toY.toInt()} Teklif\n',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: _altEtiketler[group.x.toInt()],
+                              style: TextStyle(
+                                color: Colors.indigo.shade100,
+                                fontSize: 10,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          final index = value.toInt();
+                          if (index < 0 || index >= _altEtiketler.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10.0),
+                            child: Text(
+                              _altEtiketler[index],
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontWeight: FontWeight.w500,
+                                fontSize: _secilenZaman == '15 Günlük' ? 9 : 11,
+                              ),
+                            ),
+                          );
+                        },
+                        reservedSize: 32,
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        getTitlesWidget: (value, meta) {
+                          if (value != value.toInt())
+                            return const SizedBox.shrink();
+                          if (value == 0) return const SizedBox.shrink();
+
+                          return Text(
+                            value.toInt().toString(),
+                            style: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 11,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (value) => FlLine(
+                      color: Colors.grey.shade100,
+                      strokeWidth: 1,
+                      dashArray: [5, 5],
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: _grafikVerileri.asMap().entries.map((entry) {
+                    return BarChartGroupData(
+                      x: entry.key,
+                      barRods: [
+                        BarChartRodData(
+                          toY: entry.value,
+                          color: Colors.indigo.shade400,
+                          width: _secilenZaman == 'Yıllık'
+                              ? 12
+                              : (_secilenZaman == '15 Günlük' ? 10 : 20),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(6),
+                            topRight: Radius.circular(6),
+                          ),
+                          backDrawRodData: BackgroundBarChartRodData(
+                            show: true,
+                            toY: maxValue,
+                            color: Colors.grey.shade50,
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+                swapAnimationDuration: const Duration(milliseconds: 400),
+                swapAnimationCurve: Curves.easeInOut,
+              ),
+            ),
         ],
       ),
     );

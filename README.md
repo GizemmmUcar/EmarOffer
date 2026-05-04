@@ -1,4 +1,4 @@
-# Teklif Yönetim Sistemi (Full-Stack B2B CRM)
+# Teklif Yönetim Sistemi
 
 Bu proje, işletmelerin müşteri, ürün ve teklif süreçlerini tek bir merkezden yönetebilmesi amacıyla geliştirilmiş uçtan uca (Full-Stack) bir CRM uygulamasıdır. Sistem, kod yönetiminin kolaylaştırılması ve modüler bir yapı elde edilmesi amacıyla **Backend** ve **Frontend** olmak üzere iki bağımsız parça halinde tasarlanmıştır.
 

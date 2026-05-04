@@ -5,6 +5,7 @@ import '../services/pdf_service.dart';
 import '../widgets/teklif_liste_elemani.dart';
 import 'teklif_ekle_ekrani.dart';
 import '../widgets/teklif_paylas_dialog.dart';
+import 'dart:convert';
 
 class TekliflerEkrani extends StatefulWidget {
   const TekliflerEkrani({super.key});
@@ -131,6 +132,8 @@ class _TekliflerEkraniState extends State<TekliflerEkrani> {
     if (!mounted) return;
     Navigator.pop(context);
 
+    final doviz = teklif["Doviz"]?.toString() ?? "TRY";
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -142,17 +145,78 @@ class _TekliflerEkraniState extends State<TekliflerEkrani> {
               ? const Center(
                   child: Text("Bu teklife ait ürün detayı bulunamadı."),
                 )
-              : ListView.builder(
+              : ListView.separated(
                   itemCount: detaylar.length,
+                  separatorBuilder: (context, index) => const Divider(),
                   itemBuilder: (context, index) {
                     final d = detaylar[index];
+                    String? gorselBase64 = d["UrunGorsel"]?.toString();
+                    if (gorselBase64 != null) {
+                      gorselBase64 = gorselBase64.replaceAll(
+                        RegExp(r'\s+'),
+                        '',
+                      );
+                    }
+
                     return ListTile(
-                      leading: CircleAvatar(child: Text("${index + 1}")),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 4,
+                      ),
+                      leading: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: (gorselBase64 != null && gorselBase64.isNotEmpty)
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  base64Decode(gorselBase64),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (ctx, err, stack) => const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              )
+                            : const Icon(
+                                Icons.inventory_2,
+                                color: Colors.indigo,
+                                size: 24,
+                              ),
+                      ),
                       title: Text(
                         d["UrunAdi"]?.toString() ?? "Bilinmeyen Ürün",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                       ),
-                      subtitle: Text(
-                        "Miktar: ${d["Miktar"]} | Fiyat: ${d["BirimFiyat"]} ₺ | İskonto: %${d["IskontoYuzdesi"]}",
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Miktar: ${d['Miktar'] ?? 1}  |  Birim Fiyat: ${d['BirimFiyat'] ?? 0} $doviz",
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "İskonto: %${d['IskontoYuzdesi'] ?? 0}  |  KDV Oranı: %${d['KdvOrani'] ?? 0}",
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -576,7 +640,7 @@ class _TekliflerEkraniState extends State<TekliflerEkrani> {
                         : SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: SizedBox(
-                              width: 1100,
+                              width: 1250,
                               child: ListView.builder(
                                 itemCount: _teklifler.length,
                                 itemBuilder: (context, index) {
@@ -620,7 +684,7 @@ class _TekliflerEkraniState extends State<TekliflerEkrani> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Container(
-        width: 1100,
+        width: 1250,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
@@ -630,10 +694,11 @@ class _TekliflerEkraniState extends State<TekliflerEkrani> {
           children: [
             _headerCell("No", 40, isCenter: true),
             _headerCell("Teklif No", 140),
-            _headerCell("Müşteri / Firma", 220),
-            _headerCell("Oluşturan", 130),
-            _headerCell("Tutar", 120),
-            _headerCell("İndirim (₺)", 90, isCenter: true),
+            _headerCell("Müşteri / Firma", 240),
+            _headerCell("Oluşturan", 110),
+            _headerCell("Tarihler", 140),
+            _headerCell("Tutar", 130),
+            _headerCell("İndirim", 90, isCenter: true),
             _headerCell("Durum", 140),
             _headerCell("İşlemler", 160),
           ],

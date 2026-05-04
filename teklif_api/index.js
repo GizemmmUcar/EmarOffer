@@ -4,10 +4,16 @@ const { connectDB, sql } = require("./db");
 const PORT = 3000;
 const bcrypt = require("bcryptjs");
 const app = express();
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const { v4: uuidv4 } = require("uuid");
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 connectDB();
 app.get("/", (req, res) => {
   res.send("Teklif API başarıyla çalışıyor!");
@@ -36,6 +42,9 @@ app.post("/musteriler", async (req, res) => {
       vergiDairesi,
       vergiNo,
       adres,
+      ulke,
+      sehir,
+      ilce,
     } = req.body;
 
     if (!firmaAdi || !telefon)
@@ -49,10 +58,13 @@ app.post("/musteriler", async (req, res) => {
     request.input("vergiDairesi", sql.NVarChar(50), vergiDairesi || "");
     request.input("vergiNo", sql.VarChar(50), vergiNo || "");
     request.input("adres", sql.NVarChar(sql.MAX), adres || "");
+    request.input("ulke", sql.NVarChar(100), ulke || "");
+    request.input("sehir", sql.NVarChar(100), sehir || "");
+    request.input("ilce", sql.NVarChar(100), ilce || "");
 
     await request.query(`
-      INSERT INTO Musteriler (FirmaAdi, YetkiliKisi, Telefon, Eposta, VergiDairesi, VergiNo, Adres)
-      VALUES (@firmaAdi, @yetkiliKisi, @telefon, @eposta, @vergiDairesi, @vergiNo, @adres)
+      INSERT INTO Musteriler (FirmaAdi, YetkiliKisi, Telefon, Eposta, VergiDairesi, VergiNo, Adres, Ulke, Sehir, Ilce)
+      VALUES (@firmaAdi, @yetkiliKisi, @telefon, @eposta, @vergiDairesi, @vergiNo, @adres, @ulke, @sehir, @ilce)
     `);
 
     res.status(201).json({ mesaj: "Müşteri başarıyla eklendi." });
@@ -71,9 +83,12 @@ app.put("/musteriler/:id", async (req, res) => {
       vergiDairesi,
       vergiNo,
       adres,
+      ulke,
+      sehir,
+      ilce,
     } = req.body;
-    const request = new sql.Request();
 
+    const request = new sql.Request();
     request.input("id", sql.Int, req.params.id);
     request.input("firmaAdi", sql.NVarChar(150), firmaAdi);
     request.input("yetkiliKisi", sql.NVarChar(100), yetkiliKisi || "");
@@ -82,11 +97,15 @@ app.put("/musteriler/:id", async (req, res) => {
     request.input("vergiDairesi", sql.NVarChar(50), vergiDairesi || "");
     request.input("vergiNo", sql.VarChar(50), vergiNo || "");
     request.input("adres", sql.NVarChar(sql.MAX), adres || "");
+    request.input("ulke", sql.NVarChar(100), ulke || "");
+    request.input("sehir", sql.NVarChar(100), sehir || "");
+    request.input("ilce", sql.NVarChar(100), ilce || "");
 
     await request.query(`
       UPDATE Musteriler SET 
         FirmaAdi = @firmaAdi, YetkiliKisi = @yetkiliKisi, Telefon = @telefon, 
-        Eposta = @eposta, VergiDairesi = @vergiDairesi, VergiNo = @vergiNo, Adres = @adres
+        Eposta = @eposta, VergiDairesi = @vergiDairesi, VergiNo = @vergiNo, Adres = @adres,
+        Ulke = @ulke, Sehir = @sehir, Ilce = @ilce
       WHERE Id = @id
     `);
     res.json({ mesaj: "Müşteri başarıyla güncellendi." });
@@ -125,8 +144,16 @@ app.get("/urunler", async (req, res) => {
 
 app.post("/urunler", async (req, res) => {
   try {
-    const { urunAdi, urunKodu, birimFiyati, paraBirimi, kdvOrani, aciklama } =
-      req.body;
+    const {
+      urunAdi,
+      urunKodu,
+      birimFiyati,
+      paraBirimi,
+      kdvOrani,
+      aciklama,
+      urunGorsel,
+    } = req.body;
+
     if (!urunAdi || birimFiyati == null)
       return res.status(400).send("Ürün adı ve fiyat zorunludur.");
 
@@ -138,10 +165,13 @@ app.post("/urunler", async (req, res) => {
     request.input("kdvOrani", sql.Int, kdvOrani || 18);
     request.input("aciklama", sql.NVarChar(sql.MAX), aciklama || "");
 
+    request.input("urunGorsel", sql.NVarChar(sql.MAX), urunGorsel || "");
+
     await request.query(`
-      INSERT INTO Urunler (UrunAdi, UrunKodu, BirimFiyati, ParaBirimi, KdvOrani, Aciklama) 
-      VALUES (@urunAdi, @urunKodu, @birimFiyati, @paraBirimi, @kdvOrani, @aciklama)
+      INSERT INTO Urunler (UrunAdi, UrunKodu, BirimFiyati, ParaBirimi, KdvOrani, Aciklama, UrunGorsel) 
+      VALUES (@urunAdi, @urunKodu, @birimFiyati, @paraBirimi, @kdvOrani, @aciklama, @urunGorsel)
     `);
+
     res.status(201).json({ mesaj: "Ürün başarıyla eklendi." });
   } catch (err) {
     res.status(500).send("Ürün eklenirken hata oluştu.");
@@ -150,8 +180,15 @@ app.post("/urunler", async (req, res) => {
 
 app.put("/urunler/:id", async (req, res) => {
   try {
-    const { urunAdi, urunKodu, birimFiyati, paraBirimi, kdvOrani, aciklama } =
-      req.body;
+    const {
+      urunAdi,
+      urunKodu,
+      birimFiyati,
+      paraBirimi,
+      kdvOrani,
+      aciklama,
+      urunGorsel,
+    } = req.body;
     const request = new sql.Request();
 
     request.input("id", sql.Int, req.params.id);
@@ -161,11 +198,13 @@ app.put("/urunler/:id", async (req, res) => {
     request.input("paraBirimi", sql.VarChar(10), paraBirimi || "TRY");
     request.input("kdvOrani", sql.Int, kdvOrani || 18);
     request.input("aciklama", sql.NVarChar(sql.MAX), aciklama || "");
+    request.input("urunGorsel", sql.NVarChar(sql.MAX), urunGorsel || "");
 
     await request.query(`
       UPDATE Urunler SET 
         UrunAdi = @urunAdi, UrunKodu = @UrunKodu, BirimFiyati = @birimFiyati, 
-        ParaBirimi = @paraBirimi, KdvOrani = @kdvOrani, Aciklama = @aciklama
+        ParaBirimi = @paraBirimi, KdvOrani = @kdvOrani, Aciklama = @aciklama, 
+        UrunGorsel = @urunGorsel
       WHERE Id = @id
     `);
     res.json({ mesaj: "Ürün başarıyla güncellendi." });
@@ -197,6 +236,13 @@ app.get("/teklifler", async (req, res) => {
       SELECT 
         t.*, 
         m.FirmaAdi, 
+        m.YetkiliKisi,
+        m.Telefon,
+        m.Eposta,
+        m.Adres,
+        m.Sehir, -- YENİ EKLENDİ
+        m.Ilce,  -- YENİ EKLENDİ
+        m.Ulke,  -- YENİ EKLENDİ
         k.AdSoyad as OlusturanKisi,
         DATEDIFF(day, t.OlusturmaTarihi, t.GecerlilikTarihi) AS GecerlilikGunu
       FROM Teklifler t 
@@ -216,10 +262,15 @@ app.get("/teklifler/:id/detay", async (req, res) => {
     request.input("teklifId", sql.Int, req.params.id);
 
     const result = await request.query(`
-      SELECT td.Id, td.TeklifId, td.UrunId, u.UrunAdi, td.Miktar, td.BirimFiyat, td.IskontoYuzdesi, td.SatirNotu
-      FROM TeklifDetaylari td INNER JOIN Urunler u ON td.UrunId = u.Id
-      WHERE td.TeklifId = @teklifId
-    `);
+  SELECT 
+    td.Id, td.TeklifId, td.UrunId, 
+    u.UrunAdi, u.UrunGorsel, 
+    td.Miktar, td.BirimFiyat, td.IskontoYuzdesi, 
+    td.KdvOrani -- <-- YENİ EKLENEN KISIM
+  FROM TeklifDetaylari td 
+  INNER JOIN Urunler u ON td.UrunId = u.Id
+  WHERE td.TeklifId = @teklifId
+`);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).send("Teklif detayları getirilirken bir hata oluştu.");
@@ -318,10 +369,11 @@ app.post("/teklifler", async (req, res) => {
             sql.Decimal(5, 2),
             urun.iskontoYuzdesi || 0.0,
           );
+          detayReq.input("kdvOrani", sql.Decimal(5, 2), urun.kdvOrani || 0.0);
 
           await detayReq.query(`
-            INSERT INTO TeklifDetaylari (TeklifId, UrunId, Miktar, BirimFiyat, IskontoYuzdesi)
-            VALUES (@teklifId, @urunId, @miktar, @birimFiyat, @iskontoYuzdesi)
+            INSERT INTO TeklifDetaylari (TeklifId, UrunId, Miktar, BirimFiyat, IskontoYuzdesi, KdvOrani)
+            VALUES (@teklifId, @urunId, @miktar, @birimFiyat, @iskontoYuzdesi, @kdvOrani)
           `);
         }
       }
@@ -405,10 +457,11 @@ app.post("/teklifler/:id/guncelle", async (req, res) => {
             sql.Decimal(5, 2),
             urun.iskontoYuzdesi || 0.0,
           );
+          detayReq.input("kdvOrani", sql.Decimal(5, 2), urun.kdvOrani || 0.0);
 
           await detayReq.query(`
-            INSERT INTO TeklifDetaylari (TeklifId, UrunId, Miktar, BirimFiyat, IskontoYuzdesi)
-            VALUES (@teklifId, @urunId, @miktar, @birimFiyat, @iskontoYuzdesi)
+            INSERT INTO TeklifDetaylari (TeklifId, UrunId, Miktar, BirimFiyat, IskontoYuzdesi, KdvOrani)
+            VALUES (@teklifId, @urunId, @miktar, @birimFiyat, @iskontoYuzdesi, @kdvOrani)
           `);
         }
       }
@@ -461,6 +514,33 @@ app.delete("/teklifler/:id", async (req, res) => {
     }
   } catch (err) {
     res.status(500).send("Teklif silinirken hata oluştu.");
+  }
+});
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = "./uploads";
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir);
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, uuidv4() + path.extname(file.originalname));
+  },
+});
+const upload = multer({ storage: storage });
+
+app.post("/teklifler/pdf-yukle", upload.single("pdf"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send("Dosya yüklenemedi.");
+    }
+    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+
+    res.status(200).json({ url: fileUrl });
+  } catch (err) {
+    res.status(500).send("PDF yüklenirken hata oluştu.");
   }
 });
 
@@ -546,21 +626,22 @@ app.post("/kullanicilar", async (req, res) => {
   }
 });
 
-// giriş yapma
+// Giriş yapma
 
 app.post("/kullanicilar/login", async (req, res) => {
   try {
-    const { eposta, sifre } = req.body;
-    if (!eposta || !sifre)
-      return res.status(400).send("E-posta ve şifre zorunludur.");
+    const { kullaniciBilgisi, sifre } = req.body;
+
+    if (!kullaniciBilgisi || !sifre)
+      return res.status(400).send("E-posta/Kullanıcı adı ve şifre zorunludur.");
 
     const request = new sql.Request();
-    request.input("eposta", sql.VarChar(100), eposta);
+    request.input("kullaniciBilgisi", sql.VarChar(100), kullaniciBilgisi);
 
     const result = await request.query(`
       SELECT u.Id, u.AdSoyad, u.Eposta, u.Sifre, u.RolId, r.RolAdi 
       FROM Kullanicilar u INNER JOIN Roller r ON u.RolId = r.Id
-      WHERE u.Eposta = @eposta
+      WHERE u.Eposta = @kullaniciBilgisi OR u.AdSoyad = @kullaniciBilgisi
     `);
 
     if (result.recordset.length === 0)

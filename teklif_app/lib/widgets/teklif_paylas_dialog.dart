@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../services/pdf_service.dart';
 import '../services/api_service.dart';
+import '../services/pdf_service.dart';
 
 class TeklifPaylasDialog extends StatefulWidget {
   final Map<String, dynamic> teklif;
@@ -15,212 +14,165 @@ class TeklifPaylasDialog extends StatefulWidget {
 
 class _TeklifPaylasDialogState extends State<TeklifPaylasDialog> {
   final ApiService _apiService = ApiService();
-  bool _isGenerating = false;
-
-  late TextEditingController _mesajController;
-  late TextEditingController _telefonController;
+  bool _isLoading = true;
+  String? _pdfLink;
 
   @override
   void initState() {
     super.initState();
-
-    String firmaAdi =
-        widget.teklif["FirmaAdi"]?.toString() ?? "Değerli Müşterimiz";
-    String teklifNo = widget.teklif["TeklifNo"]?.toString() ?? "";
-    String tutar = widget.teklif["GenelToplam"]?.toString() ?? "";
-    String doviz = widget.teklif["Doviz"]?.toString() ?? "TRY";
-    String kayitliTelefon = widget.teklif["Telefon"]?.toString() ?? "";
-
-    _telefonController = TextEditingController(text: kayitliTelefon);
-
-    _mesajController = TextEditingController(
-      text:
-          "Merhaba $firmaAdi,\n\n"
-          "İhtiyaçlarınız doğrultusunda hazırladığımız $teklifNo numaralı teklifimiz ekteki PDF dosyasında sunulmuştur.\n\n"
-          "Teklif Tutarı: $tutar $doviz\n\n"
-          "İyi çalışmalar dileriz.",
-    );
+    _pdfHazirlaVeYukle();
   }
 
-  @override
-  void dispose() {
-    _mesajController.dispose();
-    _telefonController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _whatsappIlePaylas() async {
-    setState(() => _isGenerating = true);
-
+  Future<void> _pdfHazirlaVeYukle() async {
     try {
-      String numara = _telefonController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      if (numara.isEmpty) {
-        throw "Lütfen geçerli bir telefon numarası girin.";
-      }
-      if (!numara.startsWith('90') && numara.length == 10) {
-        numara = '90$numara';
-      }
-
       final urunler = await _apiService.getTeklifDetaylari(widget.teklif["Id"]);
-      final sirketAyarlari = await _apiService.getSirketBilgileri();
-
+      final sirketBilgileri = await _apiService.getSirketBilgileri();
       final pdfBytes = await PdfService.teklifPdfOlustur(
         teklif: widget.teklif,
         urunler: urunler,
-        sirket: sirketAyarlari ?? {},
+        sirket: sirketBilgileri ?? {},
       );
+      final teklifNo = widget.teklif["TeklifNo"] ?? "Yeni";
+      final link = await _apiService.uploadPdfVeLinkAl(pdfBytes, teklifNo);
 
-      await Printing.sharePdf(
-        bytes: pdfBytes,
-        filename: 'Teklif_${widget.teklif["TeklifNo"]}.pdf',
-      );
-
-      final mesaj = Uri.encodeComponent(_mesajController.text);
-      final url = Uri.parse("https://wa.me/$numara?text=$mesaj");
-
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        throw "WhatsApp açılamadı. Tarayıcınız engelleyici kullanıyor olabilir.";
+      if (mounted) {
+        setState(() {
+          _pdfLink = link;
+          _isLoading = false;
+        });
       }
-
-      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text("PDF yüklenirken hata oluştu."),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  Future<void> _whatsappIlePaylas() async {
+    if (_pdfLink == null) return;
+    final firma = widget.teklif["FirmaAdi"] ?? "Müşterimiz";
+    final teklifNo = widget.teklif["TeklifNo"] ?? "";
+    final mesaj =
+        "Sayın $firma yetkilisi,\n\nGörüşmemize istinaden hazırlanan $teklifNo numaralı teklif dosyamızı aşağıdaki bağlantıdan güvenle görüntüleyebilir ve bilgisayarınıza indirebilirsiniz:\n\n $_pdfLink\n\nTeklifimizle ilgili her türlü sorunuz veya detaylı bilgi talebiniz için bizimle iletişime geçebilirsiniz.\n\nİyi çalışmalar dileriz.";
+    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(mesaj)}");
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    }
+  }
+
+  Future<void> _mailIlePaylas() async {
+    if (_pdfLink == null) return;
+    final firma = widget.teklif["FirmaAdi"] ?? "Müşterimiz";
+    final teklifNo = widget.teklif["TeklifNo"] ?? "";
+    final eposta = widget.teklif["Eposta"] ?? "";
+
+    final konu = "$firma - $teklifNo Numaralı Teklif Dosyası";
+    final mesaj =
+        "Sayın $firma yetkilisi,\n\nGörüşmemize istinaden hazırlanan $teklifNo numaralı teklif dosyamızı aşağıdaki bağlantı üzerinden güvenle görüntüleyebilir ve bilgisayarınıza indirebilirsiniz:\n\n$_pdfLink\n\nTeklifimizle ilgili her türlü sorunuz veya detaylı bilgi talebiniz için bizimle bu e-posta üzerinden veya telefonla iletişime geçebilirsiniz.\n\nİyi çalışmalar dileriz.";
+
+    final url = Uri.parse(
+      "mailto:$eposta?subject=${Uri.encodeComponent(konu)}&body=${Uri.encodeComponent(mesaj)}",
+    );
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        width: 500,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "WhatsApp ile Paylaş",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF374151),
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        "Teklifi Paylaş",
+        textAlign: TextAlign.center,
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      content: SizedBox(
+        height: 180,
+        child: _isLoading
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(color: Colors.indigo),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Güvenli Paylaşım Linki Oluşturuluyor...",
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.grey),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Paylaş butonuna bastığınızda PDF dosyası bilgisayarınıza iner ve WhatsApp açılır. PDF dosyasını sohbete sürükleyerek kolayca gönderebilirsiniz.",
-              style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.5),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              "WhatsApp Numarası",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _telefonController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                hintText: "Örn: 905xxxxxxxxx",
-                prefixIcon: const Icon(Icons.phone_android, color: Colors.teal),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            const Text(
-              "Mesaj",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _mesajController,
-              maxLines: 5,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: _isGenerating
-                      ? null
-                      : () => Navigator.pop(context),
-                  child: const Text(
-                    "İptal",
-                    style: TextStyle(color: Colors.grey),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Teklifiniz paylaşıma hazır!",
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _isGenerating ? null : _whatsappIlePaylas,
-                  icon: _isGenerating
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.send, color: Colors.white, size: 18),
-                  label: Text(
-                    _isGenerating ? "Hazırlanıyor..." : "WhatsApp'ta Paylaş",
-                    style: const TextStyle(color: Colors.white),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _paylasButonu(
+                        renk: Colors.green,
+                        icon: Icons.chat,
+                        etiket: "WhatsApp",
+                        onTap: _whatsappIlePaylas,
+                      ),
+                      _paylasButonu(
+                        renk: Colors.blue.shade600,
+                        icon: Icons.mail,
+                        etiket: "E-Posta",
+                        onTap: _mailIlePaylas,
+                      ),
+                    ],
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade600,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Kapat", style: TextStyle(color: Colors.grey)),
         ),
+      ],
+    );
+  }
+
+  Widget _paylasButonu({
+    required Color renk,
+    required IconData icon,
+    required String etiket,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: renk.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: renk, size: 32),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            etiket,
+            style: TextStyle(
+              color: renk,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }

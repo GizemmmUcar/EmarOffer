@@ -97,7 +97,7 @@ class _DashboardIcerikState extends State<DashboardIcerik> {
           ),
           const SizedBox(height: 24),
 
-          GrafikBolumu(grafikVerileri: _stats["grafikVerisi"] ?? []),
+          const GrafikBolumu(),
         ],
       ),
     );
