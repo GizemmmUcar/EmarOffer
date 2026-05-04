@@ -1,6 +1,7 @@
 # Node.js için gizlenecekler
 node_modules/
 .env
+uploads/
 
 # Flutter / Dart için gizlenecekler
 .dart_tool/
