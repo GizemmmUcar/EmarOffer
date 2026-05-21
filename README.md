@@ -19,11 +19,11 @@ Uygulama, kurumsal yazılım standartlarına (Layered & Modular Architecture) uy
 
 ## Öne Çıkan Özellikler
 
-- ** Kusursuz Responsive UI:** Cihaz ekran genişliğini dinamik ölçen altyapı sayesinde masaüstünde geniş veri tabloları, mobilde ise dikey akışkan kart mimarisi sunar.
-- ** Dinamik PDF Önizleme ve Düzenleme:** Hazırlanan teklifler anlık olarak PDF formatına dönüştürülür. Ayarlar üzerinden şablon rengi, font tipi ve blok sıralaması canlı olarak değiştirilebilir.
-- ** Gerçek Zamanlı Finansal Hesaplama:** Ürün girişleri esnasında miktar, birim fiyat, iskonto ve KDV oranlarına göre ara toplam ve genel toplamlar anlık hesaplanır.
-- ** Çoklu Dil Desteği:** Tek bir dokunuşla tekliflerin Türkçe (TR) veya İngilizce (EN) formatta üretilmesi sağlanır.
-- ** Hızlı Entegrasyon:** Oluşturulan PDF bağlantıları WhatsApp ve E-Posta entegrasyonuyla doğrudan müşterilere iletilebilir.
+- **Kusursuz Responsive UI:** Cihaz ekran genişliğini dinamik ölçen altyapı sayesinde masaüstünde geniş veri tabloları, mobilde ise dikey akışkan kart mimarisi sunar.
+- **Dinamik PDF Önizleme ve Düzenleme:** Hazırlanan teklifler anlık olarak PDF formatına dönüştürülür. Ayarlar üzerinden şablon rengi, font tipi ve blok sıralaması canlı olarak değiştirilebilir.
+- **Gerçek Zamanlı Finansal Hesaplama:** Ürün girişleri esnasında miktar, birim fiyat, iskonto ve KDV oranlarına göre ara toplam ve genel toplamlar anlık hesaplanır.
+- **Çoklu Dil Desteği:** Tek bir dokunuşla tekliflerin Türkçe (TR) veya İngilizce (EN) formatta üretilmesi sağlanır.
+- **Hızlı Entegrasyon:** Oluşturulan PDF bağlantıları WhatsApp ve E-Posta entegrasyonuyla doğrudan müşterilere iletilebilir.
 
 ---
 
