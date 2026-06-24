@@ -28,20 +28,20 @@ Uygulama, kurumsal yazılım standartlarına (Layered & Modular Architecture) uy
 
 ## Ekran Görüntüleri (Screenshots)
 
-![Giriş Ekranı](ekrangoruntuleri/giris_ekrani)
+![Giriş Ekranı](ekrangoruntuleri/giris_ekrani.png)
 ![Ana Ekran](ekrangoruntuleri\ana_ekran.png)
-![Teklifler Ekranı](ekrangoruntuleri/teklifler_ekrani)
-![Yeni Teklif Oluştur Ekranı](ekrangoruntuleri/yeni_teklif_olustur)
-![Müşteriler Ekranı](ekrangoruntuleri/müsteriler_ekrani)
-![Ürünler Ekranı](ekrangoruntuleri/urunler_ekrani)
-![Çalışanlar Ekranı](ekrangoruntuleri/calisanlar_ekrani)
-![Şirketim Yönetim Ekranı](ekrangoruntuleri/sirketim_yonetim_ekrani)
-![Firma Yönetimi Ekranı](ekrangoruntuleri/firma_yonetimi_ekrani)
+![Teklifler Ekranı](ekrangoruntuleri/teklifler_ekrani.png)
+![Yeni Teklif Oluştur Ekranı](ekrangoruntuleri/yeni_teklif_olustur.png)
+![Müşteriler Ekranı](ekrangoruntuleri/müsteriler_ekrani.png)
+![Ürünler Ekranı](ekrangoruntuleri/urunler_ekrani.png)
+![Çalışanlar Ekranı](ekrangoruntuleri/calisanlar_ekrani.png)
+![Şirketim Yönetim Ekranı](ekrangoruntuleri/sirketim_yonetim_ekrani.png)
+![Firma Yönetimi Ekranı](ekrangoruntuleri/firma_yonetimi_ekrani.png)
 
 ### Canlı PDF Editörü ve Tasarım Yönetimi
 
-![PDF Şablonları Ekranı](ekrangoruntuleri/pdf_sablonlari_ekrani)
-![PDF Şablon Oluşturma Ekranı](ekrangoruntuleri/pdf_sablon_olusturma_ekrani)
+![PDF Şablonları Ekranı](ekrangoruntuleri/pdf_sablonlari_ekrani.png)
+![PDF Şablon Oluşturma Ekranı](ekrangoruntuleri/pdf_sablon_olusturma_ekrani.png)
 
 ## Hızlı Kurulum (Getting Started)
 
