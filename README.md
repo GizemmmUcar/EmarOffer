@@ -4,44 +4,44 @@
 ![Node.js](https://img.shields.io/badge/Backend-Node.js-339933?style=for-the-badge&logo=nodedotjs)
 ![MSSQL](https://img.shields.io/badge/Database-SQL_Server-CC2927?style=for-the-badge&logo=microsoftsqlserver)
 
-Emar Offer, kurumsal firmaların müşteri, ürün ve teklif süreçlerini uçtan uca (Full-Stack) dijitalleştiren kapsamlı bir CRM ve teklif yönetim platformudur. Sistem, kod yönetiminin kolaylaştırılması ve modüler bir mimari elde edilmesi amacıyla bağımsız **Backend** ve **Frontend** servislerinden oluşmaktadır.
+Emar Offer, kurumsal firmaların müşteri, ürün ve teklif süreçlerini uçtan uca (Full-Stack) dijitalleştiren kapsamlı bir Multi-tenant (Çoklu Kiracı)CRM ve teklif yönetim platformudur. Sistem, kod yönetiminin kolaylaştırılması, firmalar arası kusursuz veri izolasyonu ve modüler bir mimari elde edilmesi amacıyla bağımsız **Backend** ve **Frontend** servislerinden oluşmaktadır.
 
 ---
 
-## Proje Yapısı ve Mimari
-
 Uygulama, kurumsal yazılım standartlarına (Layered & Modular Architecture) uygun şekilde iki parça halinde tasarlanmıştır:
 
-- **`backend/`**: Sistemin veri güvenliğini, iş mantığını ve SQL Server entegrasyonunu yürüten Node.js tabanlı RESTful API servisidir.
+- **`backend/`**: Sistemin veri güvenliğini, iş mantığını, e-posta otomasyonunu ve SQL Server entegrasyonunu yürüten Node.js tabanlı RESTful API servisidir.
 - **`frontend/`**: Kullanıcı etkileşimini sağlayan, tek bir kod tabanından hem Web hem de Mobil (Android/iOS) platformlarda çalışan Flutter arayüz uygulamasıdır.
 
 ---
 
 ## Öne Çıkan Özellikler
 
-- ** Kusursuz Responsive UI:** Cihaz ekran genişliğini dinamik ölçen altyapı sayesinde masaüstünde geniş veri tabloları, mobilde ise dikey akışkan kart mimarisi sunar.
-- ** Dinamik PDF Önizleme ve Düzenleme:** Hazırlanan teklifler anlık olarak PDF formatına dönüştürülür. Ayarlar üzerinden şablon rengi, font tipi ve blok sıralaması canlı olarak değiştirilebilir.
-- ** Gerçek Zamanlı Finansal Hesaplama:** Ürün girişleri esnasında miktar, birim fiyat, iskonto ve KDV oranlarına göre ara toplam ve genel toplamlar anlık hesaplanır.
-- ** Çoklu Dil Desteği:** Tek bir dokunuşla tekliflerin Türkçe (TR) veya İngilizce (EN) formatta üretilmesi sağlanır.
-- ** Hızlı Entegrasyon:** Oluşturulan PDF bağlantıları WhatsApp ve E-Posta entegrasyonuyla doğrudan müşterilere iletilebilir.
+- **Multi-tenant (Çoklu Firma) İzolasyonu:** Tek bir veritabanı üzerinde çalışmasına rağmen "Firma Kodu" ve JWT mühürleri sayesinde her firmanın verisini birbirinden %100 gizler ve korur.
+- **Kusursuz Responsive UI:** Cihaz ekran genişliğini dinamik ölçen altyapı sayesinde masaüstünde geniş veri tabloları, mobilde ise dikey akışkan kart mimarisi sunar.
+- **Dinamik PDF Şablonları ve Varsayılan Atama:** Hazırlanan teklifler anlık olarak PDF formatına dönüştürülür. Şablon rengi, font tipi ve blok sıralaması canlı olarak değiştirilebilir. Sık kullanılan şablonlar "Varsayılan" olarak sabitlenebilir.
+- **Gerçek Zamanlı Finansal Hesaplama:** Ürün girişleri esnasında miktar, birim fiyat, iskonto ve KDV oranlarına göre ara toplam ve genel toplamlar anlık hesaplanır.
+- **Çoklu Dil Desteği:** Tek bir dokunuşla tekliflerin Türkçe (TR) veya İngilizce (EN) formatta üretilmesi sağlanır.
+- **Gelişmiş Entegrasyon ve Otomasyon:** Üretilen PDF teklifler, Node.js (Nodemailer) sunucusu üzerinden müşteriye doğrudan "Ek (Attachment)" olarak e-postalanabilir veya oluşturulan bağlantılarla tek tuşla WhatsApp üzerinden iletilebilir.
 
 ---
 
 ## Ekran Görüntüleri (Screenshots)
 
-![Giriş Ekranı](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094618.png>)
-![Ana Ekran](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094637.png>)
-![Teklifler Ekranı](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094648.png>)
-![Yeni Teklif Oluştur Ekranı](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094750.png>)
-![Müşteriler Ekranı](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094820-1.png>)
-![Ürünler Ekranı](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094836.png>)
-![Çalışanlar Ekranı](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094905.png>)
+![Giriş Ekranı](ekrangoruntuleri/giris_ekrani)
+![Ana Ekran](ekrangoruntuleri\ana_ekran.png)
+![Teklifler Ekranı](ekrangoruntuleri/teklifler_ekrani)
+![Yeni Teklif Oluştur Ekranı](ekrangoruntuleri/yeni_teklif_olustur)
+![Müşteriler Ekranı](ekrangoruntuleri/müsteriler_ekrani)
+![Ürünler Ekranı](ekrangoruntuleri/urunler_ekrani)
+![Çalışanlar Ekranı](ekrangoruntuleri/calisanlar_ekrani)
+![Şirketim Yönetim Ekranı](ekrangoruntuleri/sirketim_yonetim_ekrani)
+![Firma Yönetimi Ekranı](ekrangoruntuleri/firma_yonetimi_ekrani)
 
 ### Canlı PDF Editörü ve Tasarım Yönetimi
 
-![PDF Şablonları Ekranı](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094913.png>)
-![PDF Şablon Oluşturma Ekranı](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 095003.png>)
-![alt text](<ekrangoruntuleri/Ekran görüntüsü 2026-05-21 094714.png>)
+![PDF Şablonları Ekranı](ekrangoruntuleri/pdf_sablonlari_ekrani)
+![PDF Şablon Oluşturma Ekranı](ekrangoruntuleri/pdf_sablon_olusturma_ekrani)
 
 ## Hızlı Kurulum (Getting Started)
 
