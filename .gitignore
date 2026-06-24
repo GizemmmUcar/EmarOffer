@@ -2,7 +2,7 @@
 node_modules/
 .env
 uploads/
-
+.vs/
 # Flutter / Dart için gizlenecekler
 .dart_tool/
 build/
