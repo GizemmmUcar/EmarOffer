@@ -1,4 +1,4 @@
-package com.example.teklif_app
+package com.example.emaroffer_app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,23 +1,95 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/teklif_model.dart';
 import '../utils/constants.dart';
 import '../models/teklif_satiri_model.dart';
 
 class ApiService {
   static final String _baseUrl = AppConstants.apiUrl;
-  static const Map<String, String> _headers = {
-    "Content-Type": "application/json",
-  };
 
   static int? aktifKullaniciId;
 
-  // Teklif
+  Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    return {
+      "Content-Type": "application/json",
+      if (token != null) "Authorization": "Bearer $token",
+    };
+  }
+
+  // Giriş yapma
+
+  Future<Map<String, dynamic>?> girisYap(
+    String firmaKodu,
+    String kullaniciBilgisi,
+    String sifre,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/kullanicilar/login'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "firmaKodu": firmaKodu,
+          "kullaniciBilgisi": kullaniciBilgisi,
+          "sifre": sifre,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+
+        aktifKullaniciId = data['user']['Id'];
+
+        return data;
+      } else {
+        throw Exception(response.body);
+      }
+    } catch (e) {
+      debugPrint("Giriş Hatası: $e");
+      rethrow;
+    }
+  }
+
+  // Çıkış yapma
+
+  Future<void> cikisYap() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    aktifKullaniciId = null;
+  }
+
+  // şifre değiştirme
+
+  Future<bool> ilkSifreyiDegistir(String yeniSifre) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$_baseUrl/kullanicilar/sifre-degistir'),
+        headers: headers,
+        body: jsonEncode({"yeniSifre": yeniSifre}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Teklifler
 
   Future<List<dynamic>> getTeklifler() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/teklifler'));
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/teklifler'),
+        headers: headers,
+      );
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
@@ -49,9 +121,10 @@ class ApiService {
     String? odemeTuru,
   }) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$_baseUrl/teklifler'),
-        headers: _headers,
+        headers: headers,
         body: jsonEncode({
           "teklifNo": teklif.teklifNo,
           "kullaniciId": ApiService.aktifKullaniciId,
@@ -85,7 +158,11 @@ class ApiService {
 
   Future<String?> deleteTeklif(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/teklifler/$id'));
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/teklifler/$id'),
+        headers: headers,
+      );
       return response.statusCode == 200 ? null : response.body;
     } catch (e) {
       return "Silme hatası.";
@@ -94,9 +171,10 @@ class ApiService {
 
   Future<bool> updateTeklifDurumu(int id, String yeniDurum) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('$_baseUrl/teklifler/$id/durum'),
-        headers: _headers,
+        headers: headers,
         body: jsonEncode({"durum": yeniDurum}),
       );
       return response.statusCode == 200;
@@ -107,9 +185,10 @@ class ApiService {
 
   Future<bool> updateTeklif(int teklifId, Map<String, dynamic> data) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$_baseUrl/teklifler/$teklifId/guncelle'),
-        headers: _headers,
+        headers: headers,
         body: jsonEncode(data),
       );
       return response.statusCode == 200;
@@ -121,8 +200,10 @@ class ApiService {
 
   Future<List<dynamic>> getTeklifDetaylari(int teklifId) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.get(
         Uri.parse('$_baseUrl/teklifler/$teklifId/detay'),
+        headers: headers,
       );
       return response.statusCode == 200 ? jsonDecode(response.body) : [];
     } catch (e) {
@@ -139,6 +220,9 @@ class ApiService {
         'POST',
         Uri.parse('$_baseUrl/teklifler/pdf-yukle'),
       );
+
+      final headers = await _getHeaders();
+      request.headers.addAll(headers);
 
       request.files.add(
         http.MultipartFile.fromBytes(
@@ -163,7 +247,11 @@ class ApiService {
   }
 
   Future<List<dynamic>> getSablonlar() async {
-    final response = await http.get(Uri.parse('$_baseUrl/sablonlar'));
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/sablonlar'),
+      headers: headers,
+    );
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -172,9 +260,10 @@ class ApiService {
   }
 
   Future<void> createSablon(Map<String, dynamic> sablonVerisi) async {
+    final headers = await _getHeaders();
     final response = await http.post(
       Uri.parse('$_baseUrl/sablonlar'),
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: jsonEncode(sablonVerisi),
     );
     if (response.statusCode != 201) {
@@ -183,9 +272,10 @@ class ApiService {
   }
 
   Future<void> updateSablon(int id, Map<String, dynamic> sablonVerisi) async {
+    final headers = await _getHeaders();
     final response = await http.put(
       Uri.parse('$_baseUrl/sablonlar/$id'),
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: jsonEncode(sablonVerisi),
     );
     if (response.statusCode != 200) {
@@ -194,16 +284,37 @@ class ApiService {
   }
 
   Future<void> deleteSablon(int id) async {
-    final response = await http.delete(Uri.parse('$_baseUrl/sablonlar/$id'));
+    final headers = await _getHeaders();
+    final response = await http.delete(
+      Uri.parse('$_baseUrl/sablonlar/$id'),
+      headers: headers,
+    );
     if (response.statusCode != 200) {
       throw Exception('Şablon silinemedi');
+    }
+  }
+
+  Future<bool> setVarsayilanSablon(int id) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.put(
+        Uri.parse('$_baseUrl/sablonlar/$id/varsayilan'),
+        headers: headers,
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
     }
   }
 
   // Müşteri
 
   Future<List<dynamic>> getMusteriler() async {
-    final response = await http.get(Uri.parse('$_baseUrl/musteriler'));
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/musteriler'),
+      headers: headers,
+    );
     return response.statusCode == 200 ? jsonDecode(response.body) : [];
   }
 
@@ -220,6 +331,7 @@ class ApiService {
     String ilce,
   ) async {
     try {
+      final headers = await _getHeaders();
       final body = jsonEncode({
         "firmaAdi": firmaAdi,
         "yetkiliKisi": yetkili,
@@ -234,7 +346,7 @@ class ApiService {
       });
       final response = await http.post(
         Uri.parse('$_baseUrl/musteriler'),
-        headers: _headers,
+        headers: headers,
         body: body,
       );
       return response.statusCode == 201;
@@ -257,6 +369,7 @@ class ApiService {
     String ilce,
   ) async {
     try {
+      final headers = await _getHeaders();
       final body = jsonEncode({
         "firmaAdi": firmaAdi,
         "yetkiliKisi": yetkili,
@@ -271,7 +384,7 @@ class ApiService {
       });
       final response = await http.put(
         Uri.parse('$_baseUrl/musteriler/$id'),
-        headers: _headers,
+        headers: headers,
         body: body,
       );
       return response.statusCode == 200;
@@ -282,7 +395,11 @@ class ApiService {
 
   Future<String?> deleteMusteri(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/musteriler/$id'));
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/musteriler/$id'),
+        headers: headers,
+      );
       return response.statusCode == 200 ? null : response.body;
     } catch (e) {
       return "Silme hatası.";
@@ -292,7 +409,11 @@ class ApiService {
   // Ürün
 
   Future<List<dynamic>> getUrunler() async {
-    final response = await http.get(Uri.parse('$_baseUrl/urunler'));
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/urunler'),
+      headers: headers,
+    );
     return response.statusCode == 200 ? jsonDecode(response.body) : [];
   }
 
@@ -304,8 +425,11 @@ class ApiService {
     int kdv,
     String aciklama,
     String? urunGorsel,
+    String kategori,
+    String altKategori,
   ) async {
     try {
+      final headers = await _getHeaders();
       final body = jsonEncode({
         "urunAdi": ad,
         "urunKodu": urunKodu,
@@ -314,10 +438,12 @@ class ApiService {
         "kdvOrani": kdv,
         "aciklama": aciklama,
         "urunGorsel": urunGorsel,
+        "kategori": kategori,
+        "altKategori": altKategori,
       });
       final response = await http.post(
         Uri.parse('$_baseUrl/urunler'),
-        headers: _headers,
+        headers: headers,
         body: body,
       );
       return response.statusCode == 201;
@@ -335,8 +461,11 @@ class ApiService {
     int kdv,
     String aciklama,
     String? urunGorsel,
+    String kategori,
+    String altKategori,
   ) async {
     try {
+      final headers = await _getHeaders();
       final body = jsonEncode({
         "urunAdi": ad,
         "urunKodu": urunKodu,
@@ -345,10 +474,12 @@ class ApiService {
         "kdvOrani": kdv,
         "aciklama": aciklama,
         "urunGorsel": urunGorsel,
+        "kategori": kategori,
+        "altKategori": altKategori,
       });
       final response = await http.put(
         Uri.parse('$_baseUrl/urunler/$id'),
-        headers: _headers,
+        headers: headers,
         body: body,
       );
       return response.statusCode == 200;
@@ -359,18 +490,26 @@ class ApiService {
 
   Future<String?> deleteUrun(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/urunler/$id'));
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/urunler/$id'),
+        headers: headers,
+      );
       return response.statusCode == 200 ? null : response.body;
     } catch (e) {
       return "Silme hatası.";
     }
   }
 
-  // Kullanıcı / Çalışan
+  // Kullanıcı Çalışan
 
   Future<List<dynamic>> getKullanicilar() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/kullanicilar'));
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/kullanicilar'),
+        headers: headers,
+      );
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
@@ -387,6 +526,7 @@ class ApiService {
     int rolId,
   ) async {
     try {
+      final headers = await _getHeaders();
       final body = jsonEncode({
         "adSoyad": adSoyad,
         "eposta": eposta,
@@ -395,7 +535,7 @@ class ApiService {
       });
       final response = await http.post(
         Uri.parse('$_baseUrl/kullanicilar'),
-        headers: _headers,
+        headers: headers,
         body: body,
       );
       return response.statusCode == 201;
@@ -412,6 +552,7 @@ class ApiService {
     int rolId,
   ) async {
     try {
+      final headers = await _getHeaders();
       final body = jsonEncode({
         "adSoyad": adSoyad,
         "eposta": eposta,
@@ -420,7 +561,7 @@ class ApiService {
       });
       final response = await http.put(
         Uri.parse('$_baseUrl/kullanicilar/$id'),
-        headers: _headers,
+        headers: headers,
         body: body,
       );
       return response.statusCode == 200;
@@ -431,8 +572,10 @@ class ApiService {
 
   Future<String?> deleteKullanici(int id) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.delete(
         Uri.parse('$_baseUrl/kullanicilar/$id'),
+        headers: headers,
       );
       if (response.statusCode == 200) {
         return null;
@@ -445,38 +588,14 @@ class ApiService {
 
   Future<List<dynamic>> getRoller() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/roller'));
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/roller'),
+        headers: headers,
+      );
       return response.statusCode == 200 ? jsonDecode(response.body) : [];
     } catch (e) {
       return [];
-    }
-  }
-
-  // Giriş Yapma
-
-  Future<Map<String, dynamic>?> girisYap(
-    String kullaniciBilgisi,
-    String sifre,
-  ) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/kullanicilar/login'),
-        headers: _headers,
-        body: jsonEncode({
-          "kullaniciBilgisi": kullaniciBilgisi,
-          "sifre": sifre,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        debugPrint("Giriş Başarısız: ${response.body}");
-        return null;
-      }
-    } catch (e) {
-      debugPrint("Bağlantı Hatası: $e");
-      return null;
     }
   }
 
@@ -484,7 +603,11 @@ class ApiService {
 
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/dashboard-stats'));
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/dashboard-stats'),
+        headers: headers,
+      );
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
@@ -501,7 +624,11 @@ class ApiService {
 
   Future<Map<String, dynamic>?> getSirketBilgileri() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/sirket'));
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/sirket'),
+        headers: headers,
+      );
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
@@ -514,9 +641,10 @@ class ApiService {
 
   Future<bool> updateSirketBilgileri(Map<String, dynamic> data) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('$_baseUrl/api/sirket'),
-        headers: {"Content-Type": "application/json"},
+        headers: headers,
         body: jsonEncode(data),
       );
 
@@ -529,6 +657,74 @@ class ApiService {
     } catch (e) {
       debugPrint("Sunucuya bağlanılamadı (Şirket Güncelleme): $e");
       return false;
+    }
+  }
+
+  // Firma yönetimi
+
+  Future<List<dynamic>> getFirmalar() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/firmalar'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> createFirma(
+    String firmaKodu,
+    String firmaAdi,
+  ) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$_baseUrl/firmalar'),
+        headers: headers,
+        body: jsonEncode({"firmaKodu": firmaKodu, "firmaAdi": firmaAdi}),
+      );
+      if (response.statusCode == 201) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      debugPrint(e.toString());
+      return null;
+    }
+  }
+
+  Future<bool> updateFirma(int id, String firmaAdi, bool aktifMi) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.put(
+        Uri.parse('$_baseUrl/firmalar/$id'),
+        headers: headers,
+        body: jsonEncode({"firmaAdi": firmaAdi, "aktifMi": aktifMi}),
+      );
+      if (response.statusCode != 200) throw Exception(response.body);
+      return true;
+    } catch (e) {
+      debugPrint(e.toString());
+      return false;
+    }
+  }
+
+  Future<String?> deleteFirma(int id) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/firmalar/$id'),
+        headers: headers,
+      );
+      return response.statusCode == 200 ? null : response.body;
+    } catch (e) {
+      return "Silme hatası.";
     }
   }
 }

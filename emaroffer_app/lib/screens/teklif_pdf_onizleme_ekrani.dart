@@ -48,9 +48,11 @@ class _TeklifPdfOnizlemeEkraniState extends State<TeklifPdfOnizlemeEkrani> {
 
           if (_sablonlar.isNotEmpty) {
             try {
-              _seciliSablon = _sablonlar.firstWhere((s) => s['Id'] == 1);
+              _seciliSablon = _sablonlar.firstWhere(
+                (s) => s['VarsayilanMi'] == true || s['VarsayilanMi'] == 1,
+              );
             } catch (e) {
-              _seciliSablon = _sablonlar.last;
+              _seciliSablon = _sablonlar.first;
             }
           }
           _isLoading = false;
@@ -160,9 +162,7 @@ class _TeklifPdfOnizlemeEkraniState extends State<TeklifPdfOnizlemeEkrani> {
         if (eposta.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                "Bu müşteriye ait e-posta adresi bulunamadı! E-posta boş açılacak.",
-              ),
+              content: Text("Bu müşteriye ait e-posta adresi bulunamadı!"),
               backgroundColor: Color(0xFFF59E0B),
             ),
           );
@@ -181,9 +181,7 @@ class _TeklifPdfOnizlemeEkraniState extends State<TeklifPdfOnizlemeEkrani> {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                "Gmail ekranı açılamadı. Lütfen tarayıcı ayarlarınızı kontrol edin.",
-              ),
+              content: Text("Tarayıcı ayarlarınızı kontrol edin."),
               backgroundColor: Colors.red,
             ),
           );
@@ -209,7 +207,6 @@ class _TeklifPdfOnizlemeEkraniState extends State<TeklifPdfOnizlemeEkrani> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-
       endDrawer: isMobilWidth
           ? Drawer(
               child: SafeArea(
@@ -238,7 +235,6 @@ class _TeklifPdfOnizlemeEkraniState extends State<TeklifPdfOnizlemeEkrani> {
               ),
             )
           : null,
-
       appBar: AppBar(
         title: Text(
           "${widget.teklif['TeklifNo']} Önizleme",
@@ -366,7 +362,6 @@ class _TeklifPdfOnizlemeEkraniState extends State<TeklifPdfOnizlemeEkrani> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           bool isMobil = constraints.maxWidth < 850;
-
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

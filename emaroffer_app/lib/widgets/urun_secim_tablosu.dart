@@ -39,7 +39,7 @@ class SatirYonetici {
   }
 }
 
-class UrunSecimTablosu extends StatelessWidget {
+class UrunSecimTablosu extends StatefulWidget {
   final List<SatirYonetici> satirlar;
   final List<dynamic> sistemUrunleri;
   final String seciliDoviz;
@@ -56,6 +56,35 @@ class UrunSecimTablosu extends StatelessWidget {
     required this.onSatirSil,
     required this.onDegisiklik,
   });
+
+  @override
+  State<UrunSecimTablosu> createState() => _UrunSecimTablosuState();
+}
+
+class _UrunSecimTablosuState extends State<UrunSecimTablosu> {
+  String _seciliKategori = "Tümü";
+
+  List<String> get _kategoriler {
+    Set<String> katSet = {"Tümü"};
+    for (var u in widget.sistemUrunleri) {
+      String k = (u["Kategori"]?.toString() ?? "").trim();
+      if (k.isNotEmpty) katSet.add(k);
+    }
+    return katSet.toList();
+  }
+
+  Iterable<Map<String, dynamic>> _getFilteredOptions(String query) {
+    return widget.sistemUrunleri.cast<Map<String, dynamic>>().where((u) {
+      String uKat = (u["Kategori"]?.toString() ?? "").trim();
+      if (_seciliKategori != "Tümü" && uKat != _seciliKategori) return false;
+
+      if (query.isEmpty) return true;
+      final ad = (u["UrunAdi"] ?? "").toString().toLowerCase();
+      final kod = (u["UrunKodu"] ?? "").toString().toLowerCase();
+      final q = query.toLowerCase();
+      return ad.contains(q) || kod.contains(q);
+    });
+  }
 
   void _galeriGoster(
     BuildContext context,
@@ -105,11 +134,8 @@ class UrunSecimTablosu extends StatelessWidget {
                   PageView.builder(
                     itemCount: gorseller.length,
                     controller: pageController,
-                    onPageChanged: (index) {
-                      setStateDialog(() {
-                        baslangicIndex = index;
-                      });
-                    },
+                    onPageChanged: (index) =>
+                        setStateDialog(() => baslangicIndex = index),
                     itemBuilder: (ctx, i) => Center(
                       child: InteractiveViewer(
                         child: Container(
@@ -281,6 +307,7 @@ class UrunSecimTablosu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isMobil = MediaQuery.of(context).size.width < 700;
+    final kategoriler = _kategoriler;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -292,21 +319,119 @@ class UrunSecimTablosu extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Ürünler ve Kalemler",
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              color: const Color(0xFF0F172A),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Ürünler ve Kalemler",
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              if (kategoriler.length > 1 && !isMobil)
+                SizedBox(
+                  height: 32,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    scrollDirection: Axis.horizontal,
+                    itemCount: kategoriler.length,
+                    itemBuilder: (context, index) {
+                      final kat = kategoriler[index];
+                      final isSelected = _seciliKategori == kat;
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: ChoiceChip(
+                          label: Text(kat),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) setState(() => _seciliKategori = kat);
+                          },
+                          selectedColor: const Color(
+                            0xFF4F46E5,
+                          ).withValues(alpha: 0.15),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          showCheckmark: false,
+                          labelStyle: GoogleFonts.inter(
+                            color: isSelected
+                                ? const Color(0xFF4F46E5)
+                                : const Color(0xFF64748B),
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? const Color(0xFF4F46E5)
+                                  : Colors.transparent,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
           ),
+
+          if (kategoriler.length > 1 && isMobil) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 32,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: kategoriler.length,
+                itemBuilder: (context, index) {
+                  final kat = kategoriler[index];
+                  final isSelected = _seciliKategori == kat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      label: Text(kat),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        if (selected) setState(() => _seciliKategori = kat);
+                      },
+                      selectedColor: const Color(
+                        0xFF4F46E5,
+                      ).withValues(alpha: 0.15),
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      showCheckmark: false,
+                      labelStyle: GoogleFonts.inter(
+                        color: isSelected
+                            ? const Color(0xFF4F46E5)
+                            : const Color(0xFF64748B),
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: isSelected
+                              ? const Color(0xFF4F46E5)
+                              : Colors.transparent,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
           const SizedBox(height: 16),
 
           if (!isMobil) _buildBasliklar(),
 
-          ...satirlar.asMap().entries.map(
+          ...widget.satirlar.asMap().entries.map(
             (e) => isMobil
                 ? _buildMobilSatir(context, e.key, e.value)
                 : _buildSatir(context, e.key, e.value),
@@ -316,7 +441,7 @@ class UrunSecimTablosu extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
-              onPressed: onSatirEkle,
+              onPressed: widget.onSatirEkle,
               icon: const Icon(Icons.add, color: Color(0xFF4F46E5), size: 18),
               label: Text(
                 "Yeni Satır Ekle",
@@ -354,12 +479,10 @@ class UrunSecimTablosu extends StatelessWidget {
     Map<String, dynamic>? seciliUrun;
 
     try {
-      seciliUrun = sistemUrunleri.firstWhere(
+      seciliUrun = widget.sistemUrunleri.firstWhere(
         (e) => e["Id"].toString() == satir.urunId.toString(),
       );
-    } catch (e) {
-      //
-    }
+    } catch (e) {}
 
     String gosterilecekAd = seciliUrun?["UrunAdi"]?.toString() ?? satir.urunAdi;
 
@@ -384,21 +507,8 @@ class UrunSecimTablosu extends StatelessWidget {
                   initialValue: TextEditingValue(text: gosterilecekAd),
                   displayStringForOption: (option) =>
                       option["UrunAdi"]?.toString() ?? "-",
-                  optionsBuilder: (TextEditingValue textValue) {
-                    if (textValue.text.isEmpty) {
-                      return sistemUrunleri.cast<Map<String, dynamic>>();
-                    }
-                    return sistemUrunleri.cast<Map<String, dynamic>>().where((
-                      u,
-                    ) {
-                      final ad = (u["UrunAdi"] ?? "").toString().toLowerCase();
-                      final kod = (u["UrunKodu"] ?? "")
-                          .toString()
-                          .toLowerCase();
-                      final q = textValue.text.toLowerCase();
-                      return ad.contains(q) || kod.contains(q);
-                    });
-                  },
+                  optionsBuilder: (TextEditingValue textValue) =>
+                      _getFilteredOptions(textValue.text),
                   onSelected: (secim) {
                     yonetici.urunGuncelle(
                       secim["Id"],
@@ -410,7 +520,7 @@ class UrunSecimTablosu extends StatelessWidget {
                       double.tryParse(secim["KdvOrani"]?.toString() ?? "0") ??
                           0.0,
                     );
-                    onDegisiklik();
+                    widget.onDegisiklik();
                   },
                   fieldViewBuilder:
                       (context, controller, focusNode, onFieldSubmitted) {
@@ -424,7 +534,7 @@ class UrunSecimTablosu extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                             ),
                             decoration: InputDecoration(
-                              hintText: "Ürün kod veya adıyla ara...",
+                              hintText: "Ürün ara...",
                               filled: true,
                               fillColor: Colors.white,
                               border: OutlineInputBorder(
@@ -444,9 +554,7 @@ class UrunSecimTablosu extends StatelessWidget {
                               ),
                               suffixIcon: const Icon(Icons.search, size: 16),
                             ),
-                            onChanged: (v) {
-                              satir.urunAdi = v;
-                            },
+                            onChanged: (v) => satir.urunAdi = v,
                           ),
                         );
                       },
@@ -472,7 +580,6 @@ class UrunSecimTablosu extends StatelessWidget {
                             ),
                             itemBuilder: (context, i) {
                               final u = options.elementAt(i);
-
                               List<String> resimler = [];
                               final rawGorsel = u["UrunGorsel"]?.toString();
                               if (rawGorsel != null && rawGorsel.isNotEmpty) {
@@ -489,12 +596,17 @@ class UrunSecimTablosu extends StatelessWidget {
                                 }
                               }
 
+                              final kat = u["Kategori"]?.toString() ?? "";
+                              final altKat = u["AltKategori"]?.toString() ?? "";
+                              String katMetni = kat;
+                              if (kat.isNotEmpty && altKat.isNotEmpty)
+                                katMetni += " > $altKat";
+
                               return ListTile(
                                 leading: GestureDetector(
                                   onTap: resimler.isNotEmpty
-                                      ? () {
-                                          _galeriGoster(context, resimler, 0);
-                                        }
+                                      ? () =>
+                                            _galeriGoster(context, resimler, 0)
                                       : null,
                                   child: Container(
                                     width: 40,
@@ -538,12 +650,26 @@ class UrunSecimTablosu extends StatelessWidget {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                subtitle: Text(
-                                  "Kod: ${u["UrunKodu"] ?? "-"}  •  Fiyat: ${u["BirimFiyati"]} $seciliDoviz",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    color: const Color(0xFF64748B),
-                                  ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (katMetni.isNotEmpty)
+                                      Text(
+                                        katMetni,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          color: const Color(0xFF4F46E5),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    Text(
+                                      "Kod: ${u["UrunKodu"] ?? "-"}  •  Fiyat: ${u["BirimFiyati"]} ${widget.seciliDoviz}",
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 onTap: () => onSelected(u),
                               );
@@ -556,7 +682,7 @@ class UrunSecimTablosu extends StatelessWidget {
                 ),
               ),
               IconButton(
-                onPressed: () => onSatirSil(index),
+                onPressed: () => widget.onSatirSil(index),
                 icon: const Icon(
                   Icons.delete_outline,
                   color: Colors.red,
@@ -580,7 +706,7 @@ class UrunSecimTablosu extends StatelessWidget {
                 child: _buildInput(
                   yonetici.fiyatCtrl,
                   (v) => yonetici.veri.birimFiyat = double.tryParse(v) ?? 0.0,
-                  prefix: "$seciliDoviz ",
+                  prefix: "${widget.seciliDoviz} ",
                 ),
               ),
             ],
@@ -615,7 +741,7 @@ class UrunSecimTablosu extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              "Toplam: ${satir.genelToplam.toStringAsFixed(2)} $seciliDoviz",
+              "Toplam: ${satir.genelToplam.toStringAsFixed(2)} ${widget.seciliDoviz}",
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
@@ -715,12 +841,10 @@ class UrunSecimTablosu extends StatelessWidget {
     Map<String, dynamic>? seciliUrun;
 
     try {
-      seciliUrun = sistemUrunleri.firstWhere(
+      seciliUrun = widget.sistemUrunleri.firstWhere(
         (e) => e["Id"].toString() == satir.urunId.toString(),
       );
-    } catch (e) {
-      //
-    }
+    } catch (e) {}
 
     String gosterilecekAd = seciliUrun?["UrunAdi"]?.toString() ?? satir.urunAdi;
 
@@ -735,17 +859,8 @@ class UrunSecimTablosu extends StatelessWidget {
               initialValue: TextEditingValue(text: gosterilecekAd),
               displayStringForOption: (option) =>
                   option["UrunAdi"]?.toString() ?? "-",
-              optionsBuilder: (TextEditingValue textValue) {
-                if (textValue.text.isEmpty) {
-                  return sistemUrunleri.cast<Map<String, dynamic>>();
-                }
-                return sistemUrunleri.cast<Map<String, dynamic>>().where((u) {
-                  final ad = (u["UrunAdi"] ?? "").toString().toLowerCase();
-                  final kod = (u["UrunKodu"] ?? "").toString().toLowerCase();
-                  final q = textValue.text.toLowerCase();
-                  return ad.contains(q) || kod.contains(q);
-                });
-              },
+              optionsBuilder: (TextEditingValue textValue) =>
+                  _getFilteredOptions(textValue.text),
               onSelected: (secim) {
                 yonetici.urunGuncelle(
                   secim["Id"],
@@ -754,7 +869,7 @@ class UrunSecimTablosu extends StatelessWidget {
                       0.0,
                   double.tryParse(secim["KdvOrani"]?.toString() ?? "0") ?? 0.0,
                 );
-                onDegisiklik();
+                widget.onDegisiklik();
               },
               fieldViewBuilder:
                   (context, controller, focusNode, onFieldSubmitted) {
@@ -768,7 +883,7 @@ class UrunSecimTablosu extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                         decoration: InputDecoration(
-                          hintText: "Ürün kod veya adıyla ara...",
+                          hintText: "Ürün ara...",
                           filled: true,
                           fillColor: const Color(0xFFF1F5F9),
                           border: OutlineInputBorder(
@@ -780,9 +895,7 @@ class UrunSecimTablosu extends StatelessWidget {
                           ),
                           suffixIcon: const Icon(Icons.search, size: 16),
                         ),
-                        onChanged: (v) {
-                          satir.urunAdi = v;
-                        },
+                        onChanged: (v) => satir.urunAdi = v,
                       ),
                     );
                   },
@@ -806,7 +919,6 @@ class UrunSecimTablosu extends StatelessWidget {
                             const Divider(height: 1, color: Color(0xFFE2E8F0)),
                         itemBuilder: (context, i) {
                           final u = options.elementAt(i);
-
                           List<String> resimler = [];
                           final rawGorsel = u["UrunGorsel"]?.toString();
                           if (rawGorsel != null && rawGorsel.isNotEmpty) {
@@ -823,12 +935,16 @@ class UrunSecimTablosu extends StatelessWidget {
                             }
                           }
 
+                          final kat = u["Kategori"]?.toString() ?? "";
+                          final altKat = u["AltKategori"]?.toString() ?? "";
+                          String katMetni = kat;
+                          if (kat.isNotEmpty && altKat.isNotEmpty)
+                            katMetni += " > $altKat";
+
                           return ListTile(
                             leading: GestureDetector(
                               onTap: resimler.isNotEmpty
-                                  ? () {
-                                      _galeriGoster(context, resimler, 0);
-                                    }
+                                  ? () => _galeriGoster(context, resimler, 0)
                                   : null,
                               child: Container(
                                 width: 40,
@@ -869,12 +985,26 @@ class UrunSecimTablosu extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            subtitle: Text(
-                              "Kod: ${u["UrunKodu"] ?? "-"}  •  Fiyat: ${u["BirimFiyati"]} $seciliDoviz",
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: const Color(0xFF64748B),
-                              ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (katMetni.isNotEmpty)
+                                  Text(
+                                    katMetni,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: const Color(0xFF4F46E5),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                Text(
+                                  "Kod: ${u["UrunKodu"] ?? "-"}  •  Fiyat: ${u["BirimFiyati"]} ${widget.seciliDoviz}",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
                             ),
                             onTap: () => onSelected(u),
                           );
@@ -905,7 +1035,7 @@ class UrunSecimTablosu extends StatelessWidget {
               child: _buildInput(
                 yonetici.fiyatCtrl,
                 (v) => satir.birimFiyat = double.tryParse(v) ?? 0.0,
-                prefix: "$seciliDoviz ",
+                prefix: "${widget.seciliDoviz} ",
               ),
             ),
           ),
@@ -946,7 +1076,7 @@ class UrunSecimTablosu extends StatelessWidget {
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Text(
-                "${satir.genelToplam.toStringAsFixed(2)} $seciliDoviz",
+                "${satir.genelToplam.toStringAsFixed(2)} ${widget.seciliDoviz}",
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
@@ -959,7 +1089,7 @@ class UrunSecimTablosu extends StatelessWidget {
             width: 42,
             height: 42,
             child: InkWell(
-              onTap: () => onSatirSil(index),
+              onTap: () => widget.onSatirSil(index),
               borderRadius: BorderRadius.circular(8),
               child: Container(
                 decoration: BoxDecoration(
@@ -1002,7 +1132,7 @@ class UrunSecimTablosu extends StatelessWidget {
       ),
       onChanged: (v) {
         onSave(v);
-        onDegisiklik();
+        widget.onDegisiklik();
       },
     );
   }

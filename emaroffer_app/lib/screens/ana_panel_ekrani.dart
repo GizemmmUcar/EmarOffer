@@ -8,6 +8,7 @@ import 'musteriler_ekrani.dart';
 import 'calisanlar_ekrani.dart';
 import 'sirket_ekrani.dart';
 import 'sablon_listesi_ekrani.dart';
+import 'firma_yonetimi_ekrani.dart';
 
 class AnaPanelEkrani extends StatefulWidget {
   final Map<String, dynamic> aktifKullanici;
@@ -37,6 +38,8 @@ class _AnaPanelEkraniState extends State<AnaPanelEkrani> {
         return const CalisanlarEkrani();
       case 6:
         return const SablonListesiEkrani();
+      case 7:
+        return const FirmaYonetimiEkrani();
       default:
         return const Center(child: Text("Bu sayfa yapım aşamasında..."));
     }
@@ -45,6 +48,14 @@ class _AnaPanelEkraniState extends State<AnaPanelEkrani> {
   @override
   Widget build(BuildContext context) {
     final bool isMobil = MediaQuery.of(context).size.width < 850;
+
+    final kullaniciVerisi = widget.aktifKullanici.containsKey('user')
+        ? widget.aktifKullanici['user']
+        : widget.aktifKullanici;
+
+    final int? firmaId = kullaniciVerisi['FirmaId'];
+    final String rolAdi = kullaniciVerisi['RolAdi'] ?? 'Personel';
+    final String adSoyad = kullaniciVerisi['AdSoyad'] ?? 'Kullanıcı';
 
     return Scaffold(
       appBar: isMobil
@@ -63,7 +74,8 @@ class _AnaPanelEkraniState extends State<AnaPanelEkrani> {
           ? Drawer(
               child: SolYanMenu(
                 aktifSayfa: _aktifSayfaIndex,
-                aktifRol: widget.aktifKullanici['RolAdi'] ?? 'Personel',
+                aktifRol: rolAdi,
+                aktifFirmaId: firmaId,
                 onSayfaDegisti: (yeniIndex) {
                   setState(() => _aktifSayfaIndex = yeniIndex);
                   Navigator.pop(context);
@@ -77,7 +89,8 @@ class _AnaPanelEkraniState extends State<AnaPanelEkrani> {
           if (!isMobil)
             SolYanMenu(
               aktifSayfa: _aktifSayfaIndex,
-              aktifRol: widget.aktifKullanici['RolAdi'] ?? 'Personel',
+              aktifRol: rolAdi,
+              aktifFirmaId: firmaId,
               onSayfaDegisti: (yeniIndex) =>
                   setState(() => _aktifSayfaIndex = yeniIndex),
             ),
@@ -85,7 +98,7 @@ class _AnaPanelEkraniState extends State<AnaPanelEkrani> {
           Expanded(
             child: Column(
               children: [
-                UstProfilBari(kullaniciAdi: widget.aktifKullanici['AdSoyad']),
+                UstProfilBari(kullaniciAdi: adSoyad),
                 Expanded(child: _aktifIcerigiGetir()),
               ],
             ),

@@ -1,6 +1,6 @@
 {
-    "name": "teklif_app",
-    "short_name": "teklif_app",
+    "name": "emaroffer_app",
+    "short_name": "emaroffer_app",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

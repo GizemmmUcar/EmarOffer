@@ -991,7 +991,7 @@ class _SablonYonetimiEkraniState extends State<SablonYonetimiEkrani> {
             controller: _sablonAdiController,
             style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
             decoration: InputDecoration(
-              labelText: 'Şablon İsmi (Örn: Modern Fatura)',
+              labelText: 'Şablon İsmi',
               filled: true,
               fillColor: const Color(0xFFF1F5F9),
               border: OutlineInputBorder(

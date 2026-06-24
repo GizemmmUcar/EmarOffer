@@ -15,6 +15,10 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
   final ApiService _apiService = ApiService();
   List<dynamic> _urunler = [];
   List<dynamic> _filtrelenmisUrunler = [];
+
+  List<String> _kategoriler = ["Tümü"];
+  String _seciliKategori = "Tümü";
+
   final TextEditingController _aramaController = TextEditingController();
   bool _isLoading = true;
   String _seciliSiralama = "İsme Göre (A-Z)";
@@ -40,8 +44,17 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
     setState(() => _isLoading = true);
     final veriler = await _apiService.getUrunler();
     if (mounted) {
+      Set<String> katSet = {"Tümü"};
+      for (var u in veriler) {
+        String k = (u["Kategori"]?.toString() ?? "").trim();
+        if (k.isNotEmpty) katSet.add(k);
+      }
+
       setState(() {
         _urunler = veriler;
+        _kategoriler = katSet.toList();
+        if (!_kategoriler.contains(_seciliKategori)) _seciliKategori = "Tümü";
+
         _listeyiGuncelle();
         _isLoading = false;
       });
@@ -50,6 +63,15 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
 
   void _listeyiGuncelle() {
     List<dynamic> sonuc = List.from(_urunler);
+
+    if (_seciliKategori != "Tümü") {
+      sonuc = sonuc
+          .where(
+            (u) => (u["Kategori"]?.toString() ?? "").trim() == _seciliKategori,
+          )
+          .toList();
+    }
+
     if (_aramaController.text.isNotEmpty) {
       final q = _aramaController.text.toLowerCase();
       sonuc = sonuc
@@ -60,6 +82,7 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
           )
           .toList();
     }
+
     if (_seciliSiralama == "İsme Göre (A-Z)") {
       sonuc.sort(
         (a, b) => (a["UrunAdi"]?.toString() ?? "").compareTo(
@@ -81,6 +104,7 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
             ),
       );
     }
+
     setState(() => _filtrelenmisUrunler = sonuc);
   }
 
@@ -331,7 +355,7 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
               backgroundColor: const Color(0xFFEF4444),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Sil"),
+            child: const Text("Sil", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -358,6 +382,12 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
   }
 
   void _urunDetayGoster(Map<String, dynamic> urun) {
+    final kategori = (urun["Kategori"]?.toString() ?? "").trim();
+    final altKategori = (urun["AltKategori"]?.toString() ?? "").trim();
+    String kategoriMetni = kategori.isEmpty ? "-" : kategori;
+    if (kategori.isNotEmpty && altKategori.isNotEmpty)
+      kategoriMetni += " > $altKategori";
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -375,6 +405,7 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _detaySatiri("Ürün Kodu:", urun["UrunKodu"]?.toString() ?? "-"),
+            _detaySatiri("Kategori:", kategoriMetni),
             _detaySatiri(
               "Fiyat:",
               "${urun["BirimFiyati"]} ${urun["ParaBirimi"] ?? 'TRY'}",
@@ -494,6 +525,56 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
             ],
           ),
           const SizedBox(height: 24),
+
+          if (_kategoriler.length > 1) ...[
+            SizedBox(
+              height: 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _kategoriler.length,
+                itemBuilder: (context, index) {
+                  final kat = _kategoriler[index];
+                  final isSelected = _seciliKategori == kat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      label: Text(kat),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() => _seciliKategori = kat);
+                          _listeyiGuncelle();
+                        }
+                      },
+                      selectedColor: const Color(
+                        0xFF4F46E5,
+                      ).withValues(alpha: 0.15),
+                      backgroundColor: Colors.white,
+                      labelStyle: GoogleFonts.inter(
+                        color: isSelected
+                            ? const Color(0xFF4F46E5)
+                            : const Color(0xFF64748B),
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                          color: isSelected
+                              ? const Color(0xFF4F46E5)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           Row(
             children: [
               Expanded(
@@ -542,9 +623,7 @@ class _UrunlerEkraniState extends State<UrunlerEkrani> {
                     color: Color(0xFF64748B),
                   ),
                   onSelected: (yeniSecim) {
-                    setState(() {
-                      _seciliSiralama = yeniSecim;
-                    });
+                    setState(() => _seciliSiralama = yeniSecim);
                     _listeyiGuncelle();
                   },
                   itemBuilder: (context) => _siralamaSecenekleri

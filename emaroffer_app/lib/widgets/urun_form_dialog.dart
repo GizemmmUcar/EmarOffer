@@ -28,6 +28,8 @@ class _UrunFormDialogState extends State<UrunFormDialog> {
 
   late final TextEditingController _adController;
   late final TextEditingController _urunController;
+  late final TextEditingController _kategoriController;
+  late final TextEditingController _altKategoriController;
   late final TextEditingController _fiyatController;
   late final TextEditingController _paraController;
   late final TextEditingController _kdvController;
@@ -55,6 +57,14 @@ class _UrunFormDialogState extends State<UrunFormDialog> {
     _urunController = TextEditingController(
       text: mevcutKod.isNotEmpty ? mevcutKod : _otomatikUrunKoduUret(),
     );
+
+    _kategoriController = TextEditingController(
+      text: widget.urun?["Kategori"]?.toString() ?? "",
+    );
+    _altKategoriController = TextEditingController(
+      text: widget.urun?["AltKategori"]?.toString() ?? "",
+    );
+
     _fiyatController = TextEditingController(
       text: widget.urun?["BirimFiyati"]?.toString() ?? "",
     );
@@ -91,6 +101,8 @@ class _UrunFormDialogState extends State<UrunFormDialog> {
   void dispose() {
     _adController.dispose();
     _urunController.dispose();
+    _kategoriController.dispose();
+    _altKategoriController.dispose();
     _fiyatController.dispose();
     _paraController.dispose();
     _kdvController.dispose();
@@ -137,6 +149,8 @@ class _UrunFormDialogState extends State<UrunFormDialog> {
         kdv,
         _aciklamaController.text,
         finalGorseller,
+        _kategoriController.text.trim(),
+        _altKategoriController.text.trim(),
       );
     } else {
       basarili = await widget.apiService.updateUrun(
@@ -148,6 +162,8 @@ class _UrunFormDialogState extends State<UrunFormDialog> {
         kdv,
         _aciklamaController.text,
         finalGorseller,
+        _kategoriController.text.trim(),
+        _altKategoriController.text.trim(),
       );
     }
 
@@ -262,7 +278,6 @@ class _UrunFormDialogState extends State<UrunFormDialog> {
                         ],
                       );
                     }),
-
                     InkWell(
                       onTap: _gorselleriSec,
                       borderRadius: BorderRadius.circular(12),
@@ -305,8 +320,35 @@ class _UrunFormDialogState extends State<UrunFormDialog> {
 
                 _buildTextField(_adController, "Ürün Adı *", isRequired: true),
                 const SizedBox(height: 16),
-                _buildTextField(_urunController, "Ürün Kodu"),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(_urunController, "Ürün Kodu"),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        _kategoriController,
+                        "Ana Kategori",
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTextField(
+                        _altKategoriController,
+                        "Alt Kategori",
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
                 Row(
                   children: [
                     Expanded(

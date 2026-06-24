@@ -61,6 +61,25 @@ class _SablonListesiEkraniState extends State<SablonListesiEkrani> {
     setState(() => _gosterilenSablonlar = geciciListe);
   }
 
+  Future<void> _varsayilanYap(int id) async {
+    setState(() => _isLoading = true);
+    bool basarili = await _apiService.setVarsayilanSablon(id);
+    if (basarili && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Varsayılan şablon güncellendi.",
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+      _sablonlariYukle();
+    } else if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _sil(int id) async {
     final onay = await showDialog<bool>(
       context: context,
@@ -324,18 +343,88 @@ class _SablonListesiEkraniState extends State<SablonListesiEkrani> {
                     itemCount: _gosterilenSablonlar.length,
                     itemBuilder: (context, index) {
                       final s = _gosterilenSablonlar[index];
-                      return SablonKarti(
-                        sablon: s,
-                        onDuzenle: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  SablonYonetimiEkrani(mevcutSablon: s),
-                            ),
-                          ).then((_) => _sablonlariYukle());
-                        },
-                        onSil: s['Id'] != 1 ? () => _sil(s['Id']) : null,
+                      final isVarsayilan =
+                          s['VarsayilanMi'] == true || s['VarsayilanMi'] == 1;
+
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          SablonKarti(
+                            sablon: s,
+                            onDuzenle: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      SablonYonetimiEkrani(mevcutSablon: s),
+                                ),
+                              ).then((_) => _sablonlariYukle());
+                            },
+                            onSil: () => _sil(s['Id']),
+                          ),
+
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: isVarsayilan
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle_outline,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "Varsayılan",
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : InkWell(
+                                    onTap: () => _varsayilanYap(s['Id']),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        "Varsayılan Yap",
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF64748B),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ],
                       );
                     },
                   ),

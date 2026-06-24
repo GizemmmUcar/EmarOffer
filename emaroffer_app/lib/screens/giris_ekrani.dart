@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import 'ana_panel_ekrani.dart';
+import 'ilk_sifre_ekrani.dart';
 
 class GirisEkrani extends StatefulWidget {
   const GirisEkrani({super.key});
@@ -13,6 +14,8 @@ class GirisEkrani extends StatefulWidget {
 class _GirisEkraniState extends State<GirisEkrani> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = ApiService();
+
+  final _firmaKoduController = TextEditingController();
   final _kullaniciBilgisiController = TextEditingController();
   final _sifreController = TextEditingController();
 
@@ -23,26 +26,43 @@ class _GirisEkraniState extends State<GirisEkrani> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    final kullanici = await _apiService.girisYap(
-      _kullaniciBilgisiController.text.trim(),
-      _sifreController.text.trim(),
-    );
+    try {
+      final data = await _apiService.girisYap(
+        _firmaKoduController.text.trim(),
+        _kullaniciBilgisiController.text.trim(),
+        _sifreController.text.trim(),
+      );
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      if (kullanici != null) {
-        ApiService.aktifKullaniciId = kullanici['Id'];
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AnaPanelEkrani(aktifKullanici: kullanici),
-          ),
-        );
-      } else {
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        if (data != null && data['user'] != null) {
+          if (data['ilkGiris'] == true) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    IlkSifreEkrani(aktifKullanici: data['user']),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    AnaPanelEkrani(aktifKullanici: data['user']),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Hatalı kullanıcı bilgisi veya şifre!",
+              e.toString().replaceAll('Exception: ', ''),
               style: GoogleFonts.inter(),
             ),
             backgroundColor: Colors.redAccent,
@@ -108,7 +128,43 @@ class _GirisEkraniState extends State<GirisEkrani> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
+
+                  TextFormField(
+                    controller: _firmaKoduController,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: "Firma Kodu",
+                      hintStyle: GoogleFonts.inter(
+                        color: const Color(0xFF94A3B8),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.business_outlined,
+                        color: Color(0xFF64748B),
+                        size: 20,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF1F5F9),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Colors.indigo,
+                          width: 1.5,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                    ),
+                    validator: (v) =>
+                        v!.isEmpty ? "Firma kodu zorunludur" : null,
+                  ),
+                  const SizedBox(height: 20),
 
                   TextFormField(
                     controller: _kullaniciBilgisiController,
@@ -117,12 +173,12 @@ class _GirisEkraniState extends State<GirisEkrani> {
                       fontWeight: FontWeight.w500,
                     ),
                     decoration: InputDecoration(
-                      hintText: "E-Posta veya Kullanıcı Adı",
+                      hintText: "Kullanıcı Adı",
                       hintStyle: GoogleFonts.inter(
                         color: const Color(0xFF94A3B8),
                       ),
                       prefixIcon: const Icon(
-                        Icons.mail_outline,
+                        Icons.person_outline,
                         color: Color(0xFF64748B),
                         size: 20,
                       ),

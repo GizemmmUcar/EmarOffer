@@ -3,11 +3,11 @@ import 'screens/giris_ekrani.dart';
 import 'utils/constants.dart';
 
 void main() {
-  runApp(const TeklifApp());
+  runApp(const emarofferApp());
 }
 
-class TeklifApp extends StatelessWidget {
-  const TeklifApp({super.key});
+class emarofferApp extends StatelessWidget {
+  const emarofferApp({super.key});
 
   @override
   Widget build(BuildContext context) {

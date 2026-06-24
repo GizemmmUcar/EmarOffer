@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../screens/giris_ekrani.dart';
+import '../services/api_service.dart';
 
 class _MenuItem {
   final IconData icon;
@@ -12,6 +13,7 @@ class _MenuItem {
 class SolYanMenu extends StatelessWidget {
   final int aktifSayfa;
   final String aktifRol;
+  final int? aktifFirmaId;
   final Function(int) onSayfaDegisti;
 
   const SolYanMenu({
@@ -19,6 +21,7 @@ class SolYanMenu extends StatelessWidget {
     required this.aktifSayfa,
     required this.aktifRol,
     required this.onSayfaDegisti,
+    this.aktifFirmaId,
   });
 
   @override
@@ -41,9 +44,18 @@ class SolYanMenu extends StatelessWidget {
       const _MenuItem(Icons.picture_as_pdf_outlined, "PDF Şablonları", 6),
     );
 
+    if (aktifFirmaId == 1) {
+      menuItems.add(
+        const _MenuItem(
+          Icons.admin_panel_settings_rounded,
+          "Firma Yönetimi",
+          7,
+        ),
+      );
+    }
+
     return Container(
       width: 260,
-
       decoration: const BoxDecoration(color: Color(0xFF2A364A)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +135,6 @@ class SolYanMenu extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-
         color: isSelected ? const Color(0xFF3B82F6) : Colors.transparent,
       ),
       child: Material(
@@ -131,7 +142,6 @@ class SolYanMenu extends StatelessWidget {
         child: InkWell(
           onTap: () => onSayfaDegisti(index),
           borderRadius: BorderRadius.circular(8),
-
           hoverColor: const Color(0xFF3E4C63),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -163,11 +173,14 @@ class SolYanMenu extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.all(16.0),
       child: InkWell(
-        onTap: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const GirisEkrani()),
-          );
+        onTap: () async {
+          await ApiService().cikisYap();
+          if (context.mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const GirisEkrani()),
+            );
+          }
         },
         borderRadius: BorderRadius.circular(8),
         hoverColor: const Color(0xFF3E4C63),
