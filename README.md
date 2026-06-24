@@ -29,7 +29,7 @@ Uygulama, kurumsal yazılım standartlarına (Layered & Modular Architecture) uy
 ## Ekran Görüntüleri (Screenshots)
 
 ![Giriş Ekranı](ekrangoruntuleri/giris_ekrani.png)
-![Ana Ekran](ekrangoruntuleri\ana_ekran.png)
+![Ana Ekran](ekrangoruntuleri/ana_ekran.png)
 ![Teklifler Ekranı](ekrangoruntuleri/teklifler_ekrani.png)
 ![Yeni Teklif Oluştur Ekranı](ekrangoruntuleri/yeni_teklif_olustur.png)
 ![Müşteriler Ekranı](ekrangoruntuleri/müsteriler_ekrani.png)
